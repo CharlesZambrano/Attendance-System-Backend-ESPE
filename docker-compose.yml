@@ -11,6 +11,9 @@ services:
     volumes:
       - .:/app
       - /app/venv
+      - ./uploads:/app/uploads # Aquí defines el volumen para los uploads
+      - ./specs:/app/specs # Aquí defines el volumen para los archivos de especificaciones
+      - ./models:/app/models # Aquí defines el volumen para los modelos
     deploy:
       resources:
         reservations:
