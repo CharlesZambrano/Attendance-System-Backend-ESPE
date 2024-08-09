@@ -1,7 +1,0 @@
-Flask
-tensorflow
-keras
-opencv-python
-numpy
-nvidia-pyindex
-nvidia-tao
