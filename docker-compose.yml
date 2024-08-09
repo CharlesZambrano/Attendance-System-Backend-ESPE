@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  yolo:
+    image: ultralytics/yolov5:latest
+    container_name: yolo_container
+    restart: unless-stopped
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ./yolo:/usr/src/app
+    working_dir: /usr/src/app
+    command: sleep infinity
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    networks:
+      - yolo-deepface-network
+
+  deepface:
+    image: serengil/deepface:latest
+    container_name: deepface_container
+    restart: unless-stopped
+    volumes:
+      - ./deepface:/home/deepface
+    working_dir: /home/deepface
+    command: sleep infinity
+    networks:
+      - yolo-deepface-network
+
+networks:
+  yolo-deepface-network:
+    driver: bridge
