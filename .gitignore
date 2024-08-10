@@ -103,3 +103,6 @@ deepface_weights/
 # Ignore files related to builds or temporary files
 build/
 dist/
+
+/deepface/
+/yolo/

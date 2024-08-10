@@ -19,8 +19,8 @@ services:
         reservations:
           devices:
             - capabilities: [gpu]
-    devices:
-      - "/dev/video0:/dev/video0"
+    # devices:
+    #   - "/dev/video0:/dev/video0"
     networks:
       - yolo-deepface-network
 
@@ -42,8 +42,27 @@ services:
         reservations:
           devices:
             - capabilities: [gpu]
-    devices:
-      - "/dev/video0:/dev/video0"
+    # devices:
+    #   - "/dev/video0:/dev/video0"
+    networks:
+      - yolo-deepface-network
+
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile.flask
+    container_name: flask_container
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./flask:/app
+    working_dir: /app
+    environment:
+      - FLASK_ENV=development
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    command: flask run --host=0.0.0.0
     networks:
       - yolo-deepface-network
 

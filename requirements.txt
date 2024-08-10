@@ -1,0 +1,7 @@
+Flask
+Flask-CORS
+requests
+opencv-python
+deepface
+pandas
+cx_Oracle  # Para la conexión a Oracle DB

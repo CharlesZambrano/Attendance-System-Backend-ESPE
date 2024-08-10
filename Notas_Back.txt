@@ -237,3 +237,5 @@ Es decir aparte del pipeline inicial que te comento la idea es:
 Escalabilidad
 Seguridad
 Mantenimiento del Modelo y Optimización
+
+
