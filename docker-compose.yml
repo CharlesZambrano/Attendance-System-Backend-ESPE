@@ -11,8 +11,8 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
-      - ./yolo:/usr/src/app
-    working_dir: /usr/src/app
+      - ./yolo:/usr/src/app/yolo-face
+    working_dir: /usr/src/app/yolo-face
     command: sleep infinity
     deploy:
       resources:
