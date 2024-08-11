@@ -11,8 +11,10 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
-      - ./yolo:/usr/src/app/yolo-face
-    working_dir: /usr/src/app/yolo-face
+      - ./yolo:/usr/src/app
+    # devices:
+    #   - "/dev/bus/usb/001/004:/dev/bus/usb/001/004"
+    working_dir: /usr/src/app
     command: sleep infinity
     deploy:
       resources:
@@ -20,7 +22,7 @@ services:
           devices:
             - capabilities: [gpu]
     # devices:
-    #   - "/dev/video0:/dev/video0"
+    #   - "/dev/bus/usb/001/004:/dev/bus/usb/001/004"
     networks:
       - yolo-deepface-network
 
@@ -60,7 +62,7 @@ services:
     working_dir: /app
     environment:
       - FLASK_ENV=development
-      - FLASK_APP=app.py  # Reemplaza con el nombre de tu archivo si es diferente
+      - FLASK_APP=app.py
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     command: flask run --host=0.0.0.0

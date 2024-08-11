@@ -1,20 +1,26 @@
-# Dockerfile.yolo
-FROM ultralytics/yolov5:latest
+# Usa la imagen base de Ultralytics
+FROM ultralytics/ultralytics:latest
 
-# Instalar wget, nano y vi
+# Establece el directorio de trabajo
+WORKDIR /workspace
+
+# Descarga el modelo YOLOv8-Face large desde GitHub
+RUN curl -L -o yolov8l-face-lindevs.pt https://github.com/lindevs/yolov8-face/releases/download/1.0.0/yolov8l-face-lindevs.pt
+
+# Instalar wget, nano, vim, ffmpeg y v4l-utils
 RUN apt-get update && apt-get install -y \
     wget \
     nano \
     vim \
+    ffmpeg \
+    v4l-utils \
  && apt-get clean
 
-# Clonar el repositorio de YOLOv5
-RUN git clone https://github.com/ultralytics/yolov5.git /usr/src/app/yolov5
-
-# Instalar las dependencias del requirements.txt
-RUN pip install --upgrade pip && pip install -r /usr/src/app/yolov5/requirements.txt
+# Limpiar el directorio antes de clonar
+RUN rm -rf /usr/src/app/*
 
 # Establecer el directorio de trabajo
 WORKDIR /usr/src/app
 
-# Usar la GPU (configuración ya presente en tu compose)
+# Comando por defecto para iniciar un shell (esto es opcional)
+CMD ["bash"]

@@ -204,38 +204,21 @@ PIPELINE Y BD:
 #################################################################################################################################################
 
 
-El docker compose se ejecuto con exito y se crearon los volumenes de yolo y deepface en mi directorio de la carpeta que estoy trabajando, como IDE estoy usando Visual Studio Code y asi esta el directorio raiz : 
-
-PS D:\ESPE\MIC\Proyecto\asistencia-app-back> ls
-
-    Directory: D:\ESPE\MIC\Proyecto\asistencia-app-back
-
-Mode                 LastWriteTime         Length Name
-----                 -------------         ------ ----
-d----            9/8/2024    14:40                .vscode
-d----            9/8/2024    15:00                deepface
-d----            9/8/2024    15:00                yolo
--a---            9/8/2024    14:41           1216 .gitignore
--a---            9/8/2024    14:42            806 docker-compose.yml
+docker-compose down && docker-compose build && docker-compose up -d
 
 
-Ahora si podemos ir con el Pipeline del Sistema
+docker exec -it deepface_container /bin/bash
 
+docker exec -it flask_container /bin/bash
 
-Ok teniendo en cuenta que se va usar una bd asi y tenia en mente este pipeline del sitema: Detección: Usar YOLO para detectar el rostro en cada fotograma del video.
-Reconocimiento: Una vez detectado el rostro, pasar la región correspondiente al modelo de reconocimiento facial.
-Etiquetado y Registro: Identificar a la persona y registrar su hora de entrada o salida.
+docker exec -it yolo_container /bin/bash
 
-Y adicional la idea es poder entrenar el modelo desde un aplicativo web con react, para lo cual tenia en mente usar APIs con Flask
+    Ejecución del Script
 
-Es decir aparte del pipeline inicial que te comento la idea es:
+        Para procesar una imagen:
 
-	1) Poder enviar un dataset para entrenar los modelos
-	2) El aplicativo web al estar conectado a una camara encendida siempre, al acercarse una persona debe identificarla, pero esa logica y proceso va a estar por APIs ya que el front end no debe encargarse de eso , asi que esta parte no tengo clara como se integraria con los modelos ya entrenados 
-
-
-Escalabilidad
-Seguridad
-Mantenimiento del Modelo y Optimización
-
-
+            python detect_faces.py --source input_image1.jpg
+        
+        Para procesar video en tiempo real usando la cámara:
+        
+            python detect_faces.py --source 0
