@@ -47,7 +47,6 @@ services:
       - /dev/dri:/dev/dri  # Añadir acceso a los gráficos integrados
       - /dev/video0:/dev/video0  # Montar primera cámara
       - /dev/video1:/dev/video1  # Montar segunda cámara (mismo dispositivo)
-      # - yolo_workspace:/app/yolo_workspace  # Montar el directorio /workspace como volumen en /app/yolo_workspace
     working_dir: /app
     environment:
       - FLASK_ENV=development

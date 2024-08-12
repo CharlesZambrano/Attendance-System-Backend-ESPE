@@ -21,6 +21,9 @@ COPY requirements.txt requirements.txt
 # Añadir el módulo 'dill' y actualizar pip
 RUN pip install --no-cache-dir -r requirements.txt dill --upgrade pip
 
+# Instalar DeepFace
+RUN pip install deepface
+
 # Copiar el código fuente en el contenedor
 COPY . .
 
