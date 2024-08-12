@@ -107,3 +107,5 @@ dist/
 /deepface/
 /yolo/
 /flask/
+!/flask/app.py
+!/flask/yolo_workspace
