@@ -1,39 +1,6 @@
 version: '3.8'
 
 services:
-  # yolo:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.yolo
-  #   container_name: yolo_container
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./yolo:/usr/src/app
-  #     - /dev/dri:/dev/dri  # Añadir acceso a los gráficos integrados
-  #     - /dev/video0:/dev/video0  # Montar primera cámara
-  #     - /dev/video1:/dev/video1  # Montar segunda cámara (mismo dispositivo)
-  #     - yolo_workspace:/workspace  # Montar el directorio /workspace como volumen
-  #   working_dir: /usr/src/app
-  #   command: sleep infinity
-  #   networks:
-  #     - yolo-deepface-network
-
-  # deepface:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.deepface
-  #   container_name: deepface_container
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./deepface:/home/deepface
-  #     - /dev/dri:/dev/dri  # Añadir acceso a los gráficos integrados
-  #     - /dev/video0:/dev/video0  # Montar primera cámara
-  #     - /dev/video1:/dev/video1  # Montar segunda cámara (mismo dispositivo)
-  #   working_dir: /home/deepface
-  #   command: sleep infinity
-  #   networks:
-  #     - yolo-deepface-network
-
   flask:
     build:
       context: .
@@ -58,7 +25,3 @@ services:
 networks:
   yolo-deepface-network:
     driver: bridge
-
-# volumes:
-#   yolo_workspace:
-#     external: false
