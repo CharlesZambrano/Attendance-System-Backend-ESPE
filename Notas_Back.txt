@@ -291,3 +291,5 @@ RESUMEN:
 docker compose down && docker compose build && docker compose up -d
 
 docker exec -it flask_container /bin/bash
+
+python3 clean_images_database.py
