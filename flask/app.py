@@ -2,9 +2,9 @@ import json
 
 import cv2
 import numpy as np
+from deepface import DeepFace
 from ultralytics import YOLO
 
-from deepface import DeepFace
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -22,20 +22,27 @@ def detect_faces():
     # Detección de rostros con YOLO
     results = model(img)
     
-    # Extraer coordenadas de los rostros detectados
-    faces = []
+    # Extraer el rostro con la mayor confianza
+    best_face = None
+    max_confidence = 0
+    
     for result in results[0].boxes.data.cpu().numpy():
         x1, y1, x2, y2, conf, cls = result
-        faces.append({
-            'x1': int(x1),
-            'y1': int(y1),
-            'x2': int(x2),
-            'y2': int(y2),
-            'confidence': float(conf),
-            'class': int(cls)
-        })
+        if conf > max_confidence:
+            max_confidence = conf
+            best_face = {
+                'x1': int(x1),
+                'y1': int(y1),
+                'x2': int(x2),
+                'y2': int(y2),
+                'confidence': float(conf),
+                'class': int(cls)
+            }
     
-    return jsonify({"faces": faces})
+    if best_face:
+        return jsonify({"faces": [best_face]})
+    else:
+        return jsonify({"faces": []})
 
 @app.route('/recognize', methods=['POST'])
 def recognize_faces():

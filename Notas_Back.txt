@@ -207,15 +207,6 @@ PIPELINE Y BD:
             FechaRegistro (DATE, NOT NULL): Fecha en la que el maestro fue registrado, es obligatoria.
             Fotografia (BLOB): Imagen del maestro, es opcional.
         
-        Rostros (Tabla): Guarda las imágenes de los rostros de los maestros junto con los descriptores necesarios para el reconocimiento facial.
-
-            RostroID (NUMBER): Primary Key, Identificador único para cada imagen de rostro.
-            MaestroID (NUMBER, NOT NULL, Foreign Key de Maestros): Relaciona la imagen del rostro con el maestro correspondiente, es obligatorio.
-            ImagenRostro (BLOB, NOT NULL): Imagen del rostro del maestro, es obligatoria.
-            Caracteristicas (CLOB, NOT NULL): Descriptores generados por DeepFace para identificar el rostro, es obligatorio.
-            Nombre (VARCHAR2(100)): Nombre asociado a la imagen del rostro, es opcional.
-            Ruta (VARCHAR2(100)): Ruta de almacenamiento de la imagen del rostro, es opcional.
-        
         Horarios (Tabla): Define los horarios laborales de los maestros para determinar las horas de entrada y salida esperadas.
 
             HorarioID (NUMBER): Primary Key, Identificador único para cada horario.
@@ -276,6 +267,26 @@ PLAN:
         Despliegue en un entorno de producción: Asegúrate de que el entorno esté correctamente configurado para soportar la carga de trabajo, y considera usar herramientas de monitoreo para asegurar que todo funcione bien en producción.
 
 #################################################################################################################################################
+
+RESUMEN:
+    Resumen del Funcionamiento:
+        Detección de Rostros con YOLO:
+
+            El código utiliza YOLO para detectar rostros en la imagen enviada desde el frontend.
+
+        Reconocimiento de Rostros con DeepFace:
+
+            Cada rostro detectado se recorta y se pasa a DeepFace.find() para encontrar coincidencias en la base de datos.
+            
+            Se cuenta cuántas veces cada identidad aparece en los resultados.
+
+        Devolución de la Identidad:
+
+            Si una identidad aparece 10 o más veces, se devuelve esa identidad.
+
+            Si no se alcanzan las 10 coincidencias, se devuelve "Desconocido".
+
+            Este enfoque garantiza que el sistema pueda identificar a una persona con alta precisión y reducir el riesgo de falsos positivos.
 
 docker compose down && docker compose build && docker compose up -d
 
