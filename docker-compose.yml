@@ -12,8 +12,6 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       - ./yolo:/usr/src/app
-    # devices:
-    #   - "/dev/bus/usb/001/004:/dev/bus/usb/001/004"
     working_dir: /usr/src/app
     command: sleep infinity
     deploy:
@@ -21,8 +19,6 @@ services:
         reservations:
           devices:
             - capabilities: [gpu]
-    # devices:
-    #   - "/dev/bus/usb/001/004:/dev/bus/usb/001/004"
     networks:
       - yolo-deepface-network
 
@@ -44,8 +40,6 @@ services:
         reservations:
           devices:
             - capabilities: [gpu]
-    # devices:
-    #   - "/dev/video0:/dev/video0"
     networks:
       - yolo-deepface-network
 
