@@ -1,5 +1,5 @@
 # Byte-compiled / optimized / DLL files
-__pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 
@@ -90,11 +90,11 @@ yolo_weights/
 deepface_weights/
 
 # Ignore images or video captures (unless needed)
-*.jpg
-*.jpeg
-*.png
-*.mp4
-*.avi
+# *.jpg
+# *.jpeg
+# *.png
+# *.mp4
+# *.avi
 
 # Ignore Python egg files
 *.egg
@@ -106,6 +106,3 @@ dist/
 
 /deepface/
 /yolo/
-/flask/
-!/flask/app.py
-!/flask/yolo_workspace
