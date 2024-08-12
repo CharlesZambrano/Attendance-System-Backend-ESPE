@@ -8,10 +8,14 @@ Levantar BD ORACLE:
     2) 
         docker login container-registry.oracle.com
 
+        echo "Jajamaru20@" | docker login container-registry.oracle.com --username juniorbalseca@outlook.com --password-stdin
+
     3) 
         docker pull container-registry.oracle.com/database/enterprise:21.3.0.0
 
     4) 
+        WINDOWS:
+
         docker run -d --name oracle-db `
           -p 1521:1521 -p 5500:5500 `
           -e ORACLE_SID=attendance `
@@ -19,6 +23,15 @@ Levantar BD ORACLE:
           -e ORACLE_PWD=OraclePassword123 `
           -e ORACLE_CHARACTERSET=AL32UTF8 `
           container-registry.oracle.com/database/enterprise:21.3.0.0
+
+        LINUX: 
+            docker run -d --name oracle-db \
+            -p 1521:1521 -p 5500:5500 \
+            -e ORACLE_SID=attendance \
+            -e ORACLE_PDB=ORCLPDB1 \
+            -e ORACLE_PWD=OraclePassword123 \
+            -e ORACLE_CHARACTERSET=AL32UTF8 \
+            container-registry.oracle.com/database/enterprise:21.3.0.0
 
     5) 
         ALTER SESSION SET CONTAINER = ORCLPDB1;
@@ -38,59 +51,71 @@ Levantar BD ORACLE:
     6)
         -- Creation of the Role table
         CREATE TABLE Role (
-            RoleID NUMBER PRIMARY KEY,
-            RoleName VARCHAR2(50) NOT NULL UNIQUE
+            RoleID NUMBER PRIMARY KEY, -- Clave primaria, identificador único del rol
+            RoleName VARCHAR2(50) NOT NULL UNIQUE, -- Nombre del rol
+            CreationDate DATE NOT NULL -- Fecha de creación del rol (Atributo añadido)
         );
 
         -- Creation of the AppUser table (renamed from User)
         CREATE TABLE AppUser (
-            UserID NUMBER PRIMARY KEY,
-            FirstName VARCHAR2(100) NOT NULL,
-            LastName VARCHAR2(100) NOT NULL,
-            Email VARCHAR2(150) NOT NULL UNIQUE,
-            Password VARCHAR2(256) NOT NULL,
-            RoleID NUMBER NOT NULL,
-            RegistrationDate DATE NOT NULL,
+            UserID NUMBER PRIMARY KEY, -- Clave primaria, identificador único del usuario
+            FirstName VARCHAR2(100) NOT NULL, -- Primer nombre del usuario
+            LastName VARCHAR2(100) NOT NULL, -- Apellido del usuario
+            Email VARCHAR2(150) NOT NULL UNIQUE, -- Correo electrónico del usuario
+            Password VARCHAR2(256) NOT NULL, -- Contraseña del usuario
+            RoleID NUMBER NOT NULL, -- Clave foránea hacia la tabla Role
+            RegistrationDate DATE NOT NULL, -- Fecha de registro del usuario
+            TeacherID NUMBER, -- Clave foránea hacia la tabla Teacher (Atributo añadido)
+            -- USER_NAME del modelo original se omite ya que Email cumple la misma función
             CONSTRAINT fk_role FOREIGN KEY (RoleID) REFERENCES Role(RoleID)
         );
 
         -- Creation of the Teacher table
         CREATE TABLE Teacher (
-            TeacherID NUMBER PRIMARY KEY,
-            UserID NUMBER NOT NULL,
-            FirstName VARCHAR2(100) NOT NULL,
-            LastName VARCHAR2(100) NOT NULL,
-            RegistrationDate DATE NOT NULL,
-            Photo BLOB,
+            TeacherID NUMBER PRIMARY KEY, -- Clave primaria, identificador único del maestro
+            UserID NUMBER NOT NULL, -- Clave foránea hacia la tabla AppUser
+            TeacherCode VARCHAR2(10) NOT NULL UNIQUE, -- Código único del maestro (Atributo añadido)
+            FirstName VARCHAR2(100) NOT NULL, -- Primer nombre del maestro
+            LastName VARCHAR2(100) NOT NULL, -- Apellido del maestro
+            Email VARCHAR2(150) NOT NULL UNIQUE, -- Correo electrónico del maestro (Atributo añadido, duplicado en AppUser)
+            RegistrationDate DATE NOT NULL, -- Fecha de registro del maestro
+            Photo BLOB, -- Foto del maestro
+            -- La relación UserID podría ser un atributo opcional o nulo si los maestros no siempre son usuarios
             CONSTRAINT fk_user FOREIGN KEY (UserID) REFERENCES AppUser(UserID)
         );
 
         -- Creation of the Face table
         CREATE TABLE Face (
-            FaceID NUMBER PRIMARY KEY,
-            TeacherID NUMBER NOT NULL,
-            FaceImage BLOB NOT NULL,
-            Features CLOB NOT NULL,
+            FaceID NUMBER PRIMARY KEY, -- Clave primaria, identificador único de la imagen facial
+            TeacherID NUMBER NOT NULL, -- Clave foránea hacia la tabla Teacher
+            FaceImage BLOB NOT NULL, -- Imagen facial
+            Features CLOB NOT NULL, -- Características de la imagen facial
+            Name VARCHAR2(100), -- Nombre asociado a la imagen (Atributo añadido)
+            Path VARCHAR2(100), -- Ruta del archivo de la imagen (Atributo añadido)
             CONSTRAINT fk_teacher FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID)
         );
 
         -- Creation of the Schedule table
         CREATE TABLE Schedule (
-            ScheduleID NUMBER PRIMARY KEY,
-            TeacherID NUMBER NOT NULL,
-            DayOfWeek VARCHAR2(15) NOT NULL,
-            StartTime TIMESTAMP NOT NULL,
-            EndTime TIMESTAMP NOT NULL,
+            ScheduleID NUMBER PRIMARY KEY, -- Clave primaria, identificador único del horario
+            TeacherID NUMBER NOT NULL, -- Clave foránea hacia la tabla Teacher
+            DayOfWeek VARCHAR2(15) NOT NULL, -- Día de la semana (reemplaza el atributo DAY)
+            StartTime TIMESTAMP NOT NULL, -- Hora de inicio
+            EndTime TIMESTAMP NOT NULL, -- Hora de fin
+            TotalHours NUMBER NOT NULL, -- Horas totales (Atributo añadido)
             CONSTRAINT fk_teacher_schedule FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID)
         );
 
         -- Creation of the Attendance table
         CREATE TABLE Attendance (
-            AttendanceID NUMBER PRIMARY KEY,
-            TeacherID NUMBER NOT NULL,
-            Timestamp TIMESTAMP NOT NULL,
-            Type VARCHAR2(10) NOT NULL,
-            DetectionCoordinates CLOB,
+            AttendanceID NUMBER PRIMARY KEY, -- Clave primaria, identificador único de la asistencia
+            TeacherID NUMBER NOT NULL, -- Clave foránea hacia la tabla Teacher
+            AttendanceCode VARCHAR2(10) NOT NULL, -- Código de asistencia (Atributo añadido)
+            RegisterDate TIMESTAMP NOT NULL, -- Fecha y hora de registro (renombrado desde Timestamp)
+            TotalHours NUMBER NOT NULL, -- Horas totales (Atributo añadido)
+            Late CHAR(1) CHECK (Late IN ('Y', 'N')), -- Indicador de tardanza (Atributo añadido)
+            DetectionCoordinates CLOB, -- Coordenadas de detección facial
+            Type VARCHAR2(10) NOT NULL, -- Tipo de asistencia
             CONSTRAINT fk_teacher_attendance FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID)
         );
 
@@ -163,28 +188,34 @@ PIPELINE Y BD:
             Contrasena (VARCHAR2(256), NOT NULL): Contraseña del usuario almacenada como hash, es obligatoria.
             RolID (NUMBER, NOT NULL, Foreign Key de Roles): Rol asignado al usuario, es obligatorio.
             FechaRegistro (DATE, NOT NULL): Fecha de registro del usuario en el sistema, es obligatoria.
-
+            MaestroID (NUMBER, Foreign Key de Maestros): Relaciona al usuario con el maestro correspondiente si aplica, es opcional.
+        
         Roles (Tabla): Define los diferentes roles que un usuario puede tener en el sistema.
 
             RolID (NUMBER): Primary Key, Identificador único para cada rol.
             NombreRol (VARCHAR2(50), NOT NULL, UNIQUE): Nombre del rol, como "Admin" o "Maestro", es obligatorio y único.
-
+            FechaCreacion (DATE, NOT NULL): Fecha en que se creó el rol, es obligatoria.
+        
         Maestros (Tabla): Almacena la información específica de los maestros que se registran en el sistema para el control de asistencia.
 
             MaestroID (NUMBER): Primary Key, Identificador único para cada maestro.
             UsuarioID (NUMBER, NOT NULL, Foreign Key de Usuarios): Relaciona al maestro con su cuenta de usuario, es obligatorio.
+            CodigoMaestro (VARCHAR2(10), NOT NULL, UNIQUE): Código único asignado al maestro, es obligatorio.
             Nombre (VARCHAR2(100), NOT NULL): Nombre del maestro, es obligatorio.
             Apellido (VARCHAR2(100), NOT NULL): Apellido del maestro, es obligatorio.
+            Email (VARCHAR2(150), NOT NULL, UNIQUE): Correo electrónico del maestro, es obligatorio (duplicado en Usuarios).
             FechaRegistro (DATE, NOT NULL): Fecha en la que el maestro fue registrado, es obligatoria.
             Fotografia (BLOB): Imagen del maestro, es opcional.
-
+        
         Rostros (Tabla): Guarda las imágenes de los rostros de los maestros junto con los descriptores necesarios para el reconocimiento facial.
 
             RostroID (NUMBER): Primary Key, Identificador único para cada imagen de rostro.
             MaestroID (NUMBER, NOT NULL, Foreign Key de Maestros): Relaciona la imagen del rostro con el maestro correspondiente, es obligatorio.
             ImagenRostro (BLOB, NOT NULL): Imagen del rostro del maestro, es obligatoria.
             Caracteristicas (CLOB, NOT NULL): Descriptores generados por DeepFace para identificar el rostro, es obligatorio.
-
+            Nombre (VARCHAR2(100)): Nombre asociado a la imagen del rostro, es opcional.
+            Ruta (VARCHAR2(100)): Ruta de almacenamiento de la imagen del rostro, es opcional.
+        
         Horarios (Tabla): Define los horarios laborales de los maestros para determinar las horas de entrada y salida esperadas.
 
             HorarioID (NUMBER): Primary Key, Identificador único para cada horario.
@@ -192,14 +223,18 @@ PIPELINE Y BD:
             DiaSemana (VARCHAR2(15), NOT NULL): Día de la semana al que corresponde el horario, como "Lunes" o "Martes", es obligatorio.
             HoraInicio (TIMESTAMP, NOT NULL): Hora de inicio del trabajo para el maestro en ese día específico, es obligatorio.
             HoraFin (TIMESTAMP, NOT NULL): Hora de finalización del trabajo para el maestro en ese día específico, es obligatorio.
-
+            HorasTotales (NUMBER, NOT NULL): Número total de horas programadas en el horario, es obligatorio.
+        
         Asistencias (Tabla): Registra las entradas y salidas de los maestros mediante el reconocimiento facial.
 
             AsistenciaID (NUMBER): Primary Key, Identificador único para cada registro de asistencia.
             MaestroID (NUMBER, NOT NULL, Foreign Key de Maestros): Relaciona el registro de asistencia con un maestro específico, es obligatorio.
+            CodigoAsistencia (VARCHAR2(10), NOT NULL): Código que describe el tipo de asistencia (por ejemplo, "Presente" o "Ausente"), es obligatorio.
             FechaHora (TIMESTAMP, NOT NULL): Fecha y hora en que se registró la entrada o salida, es obligatorio.
-            Tipo (VARCHAR2(10), NOT NULL): Tipo de registro, ya sea "Entrada" o "Salida", es obligatorio.
+            HorasTotales (NUMBER, NOT NULL): Número total de horas de asistencia registradas, es obligatorio.
+            Tarde (CHAR(1), NOT NULL, CHECK (Tarde IN ('Y', 'N'))): Indicador de tardanza (Y para sí, N para no), es obligatorio.
             CoordenadasDeteccion (CLOB): Datos opcionales de coordenadas generadas por YOLO durante la detección del rostro, es opcional.
+            Tipo (VARCHAR2(10), NOT NULL): Tipo de registro, ya sea "Entrada" o "Salida", es obligatorio.
 
 #################################################################################################################################################
 

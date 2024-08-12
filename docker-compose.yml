@@ -14,11 +14,6 @@ services:
       - /dev/video1:/dev/video1  # Montar segunda cámara (mismo dispositivo)
     working_dir: /usr/src/app
     command: sleep infinity
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]  # Mantener esto para indicar que usará gráficos, pero no específicos de NVIDIA
     networks:
       - yolo-deepface-network
 
@@ -35,11 +30,6 @@ services:
       - /dev/video1:/dev/video1  # Montar segunda cámara (mismo dispositivo)
     working_dir: /home/deepface
     command: sleep infinity
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]  # Mantener esto para indicar que usará gráficos, pero no específicos de NVIDIA
     networks:
       - yolo-deepface-network
 
