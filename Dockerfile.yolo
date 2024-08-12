@@ -4,7 +4,7 @@ FROM ultralytics/ultralytics:latest
 # Establece el directorio de trabajo
 WORKDIR /workspace
 
-# Descarga el modelo YOLOv8-Face large desde GitHub
+# Descarga el modelo Pre-trained YOLOv8-Face model.large desde GitHub
 RUN curl -L -o yolov8l-face-lindevs.pt https://github.com/lindevs/yolov8-face/releases/download/1.0.0/yolov8l-face-lindevs.pt
 
 # Instalar wget, nano, vim, ffmpeg y v4l-utils
@@ -12,8 +12,6 @@ RUN apt-get update && apt-get install -y \
     wget \
     nano \
     vim \
-    ffmpeg \
-    v4l-utils \
  && apt-get clean
 
 # Limpiar el directorio antes de clonar

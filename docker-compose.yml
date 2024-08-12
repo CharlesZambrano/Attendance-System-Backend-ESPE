@@ -7,18 +7,18 @@ services:
       dockerfile: Dockerfile.yolo
     container_name: yolo_container
     restart: unless-stopped
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       - ./yolo:/usr/src/app
+      - /dev/dri:/dev/dri  # Añadir acceso a los gráficos integrados
+      - /dev/video0:/dev/video0  # Montar primera cámara
+      - /dev/video1:/dev/video1  # Montar segunda cámara (mismo dispositivo)
     working_dir: /usr/src/app
     command: sleep infinity
     deploy:
       resources:
         reservations:
           devices:
-            - capabilities: [gpu]
+            - capabilities: [gpu]  # Mantener esto para indicar que usará gráficos, pero no específicos de NVIDIA
     networks:
       - yolo-deepface-network
 
@@ -28,18 +28,18 @@ services:
       dockerfile: Dockerfile.deepface
     container_name: deepface_container
     restart: unless-stopped
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       - ./deepface:/home/deepface
+      - /dev/dri:/dev/dri  # Añadir acceso a los gráficos integrados
+      - /dev/video0:/dev/video0  # Montar primera cámara
+      - /dev/video1:/dev/video1  # Montar segunda cámara (mismo dispositivo)
     working_dir: /home/deepface
     command: sleep infinity
     deploy:
       resources:
         reservations:
           devices:
-            - capabilities: [gpu]
+            - capabilities: [gpu]  # Mantener esto para indicar que usará gráficos, pero no específicos de NVIDIA
     networks:
       - yolo-deepface-network
 
@@ -53,12 +53,13 @@ services:
       - "5000:5000"
     volumes:
       - ./flask:/app
+      - /dev/dri:/dev/dri  # Añadir acceso a los gráficos integrados
+      - /dev/video0:/dev/video0  # Montar primera cámara
+      - /dev/video1:/dev/video1  # Montar segunda cámara (mismo dispositivo)
     working_dir: /app
     environment:
       - FLASK_ENV=development
       - FLASK_APP=app.py
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     command: flask run --host=0.0.0.0
     networks:
       - yolo-deepface-network

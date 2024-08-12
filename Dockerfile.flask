@@ -2,6 +2,12 @@
 
 FROM python:3.8-slim
 
+RUN apt-get update && apt-get install -y \
+    wget \
+    nano \
+    vim \
+ && apt-get clean
+
 WORKDIR /app
 
 COPY requirements.txt requirements.txt
