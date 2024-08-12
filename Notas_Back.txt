@@ -277,20 +277,6 @@ PLAN:
 
 #################################################################################################################################################
 
-docker-compose down && docker-compose build && docker-compose up -d
-
-docker exec -it deepface_container /bin/bash
+docker compose down && docker compose build && docker compose up -d
 
 docker exec -it flask_container /bin/bash
-
-docker exec -it yolo_container /bin/bash
-
-    Ejecución del Script
-
-        Para procesar una imagen:
-
-            python detect_faces.py --source input_image1.jpg
-        
-        Para procesar video en tiempo real usando la cámara:
-        
-            python detect_faces.py --source 0
