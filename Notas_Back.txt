@@ -238,9 +238,46 @@ PIPELINE Y BD:
 
 #################################################################################################################################################
 
+PLAN:
+
+    1. Integración de YOLO y DeepFace en Flask Backend
+
+        a. Detección de Rostros con YOLO
+
+            Código para Detección de Rostros: Desarrolla una función en el backend que reciba un fotograma (o imagen) y utilice YOLO para detectar rostros en la imagen.
+
+            Integración con Flask: Crea una ruta en Flask (/detect) que reciba las imágenes desde el frontend, ejecute la detección de rostros y devuelva las coordenadas de las caras detectadas.
+
+        b. Reconocimiento de Rostros con DeepFace
+
+            Código para Reconocimiento de Rostros: Desarrolla una función que tome las regiones de los rostros detectados y las pase al modelo DeepFace para su identificación.
+
+            Integración con Flask: Crea una ruta en Flask (/recognize) que reciba las coordenadas de las caras detectadas y las procese con DeepFace para devolver la identidad.
+
+    2. Conexión con la Base de Datos Oracle.
+
+        Registrar Asistencia: Una vez que tengas la identidad del rostro, necesitas registrar la hora de entrada/salida en la base de datos Oracle.
+
+        Configuración de la Base de Datos en Flask: Usa cx_Oracle para conectarte a la base de datos desde Flask y crear una función para registrar la asistencia.
+
+    3. Desarrollo del Frontend en React
+
+        Captura de Imágenes en Tiempo Real: Desarrolla un componente en React que capture imágenes de la cámara del usuario y las envíe al backend.
+
+        Mostrar Resultados: Desarrolla la funcionalidad para mostrar el nombre del empleado, junto con la hora de entrada o salida, en el frontend.
+
+    4. Pruebas y Depuración
+        Pruebas Unitarias: Desarrolla pruebas unitarias para cada parte del sistema, tanto en el backend como en el frontend.
+
+        Depuración: Ejecuta todo el pipeline, desde la captura de imágenes hasta el registro de asistencia, asegurándote de que cada parte funcione correctamente y de que los datos se almacenen adecuadamente en la base de datos.
+
+    5. Despliegue y Monitoreo
+
+        Despliegue en un entorno de producción: Asegúrate de que el entorno esté correctamente configurado para soportar la carga de trabajo, y considera usar herramientas de monitoreo para asegurar que todo funcione bien en producción.
+
+#################################################################################################################################################
 
 docker-compose down && docker-compose build && docker-compose up -d
-
 
 docker exec -it deepface_container /bin/bash
 

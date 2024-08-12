@@ -5,3 +5,4 @@ opencv-python
 deepface
 pandas
 cx_Oracle  # Para la conexión a Oracle DB
+torch

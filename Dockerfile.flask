@@ -1,18 +1,28 @@
-# Dockerfile.flask
-
 FROM python:3.8-slim
 
+# Instalar dependencias necesarias, incluyendo libGL
 RUN apt-get update && apt-get install -y \
     wget \
     nano \
     vim \
- && apt-get clean
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && apt-get clean
 
+# Establecer el directorio de trabajo
 WORKDIR /app
 
-COPY requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Copiar el modelo Pre-trained YOLOv8-Face model.large al directorio /app
+COPY yolov8l-face-lindevs.pt /app/yolov8l-face-lindevs.pt
 
+# Copiar el archivo de requisitos e instalar dependencias
+COPY requirements.txt requirements.txt
+
+# Añadir el módulo 'dill' y actualizar pip
+RUN pip install --no-cache-dir -r requirements.txt dill --upgrade pip
+
+# Copiar el código fuente en el contenedor
 COPY . .
 
+# Comando para ejecutar la aplicación Flask
 CMD ["flask", "run", "--host=0.0.0.0"]
