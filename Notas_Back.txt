@@ -1,0 +1,295 @@
+Levantar BD ORACLE:
+
+    1) 
+        Ingresar y aceptar los terminos y condiciones (Se necesita cuenta de Oracle): 
+        
+        https://container-registry.oracle.com/ords/f?p=113:4:105499877711895:::::
+
+    2) 
+        docker login container-registry.oracle.com
+
+        echo "Jajamaru20@" | docker login container-registry.oracle.com --username juniorbalseca@outlook.com --password-stdin
+
+    3) 
+        docker pull container-registry.oracle.com/database/enterprise:21.3.0.0
+
+    4) 
+        WINDOWS:
+
+        docker run -d --name oracle-db `
+          -p 1521:1521 -p 5500:5500 `
+          -e ORACLE_SID=attendance `
+          -e ORACLE_PDB=ORCLPDB1 `
+          -e ORACLE_PWD=OraclePassword123 `
+          -e ORACLE_CHARACTERSET=AL32UTF8 `
+          container-registry.oracle.com/database/enterprise:21.3.0.0
+
+        LINUX: 
+            docker run -d --name oracle-db \
+            -p 1521:1521 -p 5500:5500 \
+            -e ORACLE_SID=attendance \
+            -e ORACLE_PDB=ORCLPDB1 \
+            -e ORACLE_PWD=OraclePassword123 \
+            -e ORACLE_CHARACTERSET=AL32UTF8 \
+            container-registry.oracle.com/database/enterprise:21.3.0.0
+
+    5) 
+        ALTER SESSION SET CONTAINER = ORCLPDB1;
+
+        CREATE USER espe_system IDENTIFIED BY admin;
+
+        GRANT CREATE SESSION TO espe_system;
+
+        GRANT CREATE TABLE TO espe_system;
+
+        GRANT CREATE SEQUENCE TO espe_system;
+
+        GRANT CREATE VIEW TO espe_system;
+
+        GRANT CREATE PROCEDURE TO espe_system;
+
+    6)
+        -- Creation of the Role table
+        CREATE TABLE Role (
+            RoleID NUMBER PRIMARY KEY, -- Clave primaria, identificador único del rol
+            RoleName VARCHAR2(50) NOT NULL UNIQUE, -- Nombre del rol
+            CreationDate DATE NOT NULL -- Fecha de creación del rol (Atributo añadido)
+        );
+
+        -- Creation of the AppUser table (renamed from User)
+        CREATE TABLE AppUser (
+            UserID NUMBER PRIMARY KEY, -- Clave primaria, identificador único del usuario
+            FirstName VARCHAR2(100) NOT NULL, -- Primer nombre del usuario
+            LastName VARCHAR2(100) NOT NULL, -- Apellido del usuario
+            Email VARCHAR2(150) NOT NULL UNIQUE, -- Correo electrónico del usuario
+            Password VARCHAR2(256) NOT NULL, -- Contraseña del usuario
+            RoleID NUMBER NOT NULL, -- Clave foránea hacia la tabla Role
+            RegistrationDate DATE NOT NULL, -- Fecha de registro del usuario
+            TeacherID NUMBER, -- Clave foránea hacia la tabla Teacher (Atributo añadido)
+            -- USER_NAME del modelo original se omite ya que Email cumple la misma función
+            CONSTRAINT fk_role FOREIGN KEY (RoleID) REFERENCES Role(RoleID)
+        );
+
+        -- Creation of the Teacher table
+        CREATE TABLE Teacher (
+            TeacherID NUMBER PRIMARY KEY, -- Clave primaria, identificador único del maestro
+            UserID NUMBER NOT NULL, -- Clave foránea hacia la tabla AppUser
+            TeacherCode VARCHAR2(10) NOT NULL UNIQUE, -- Código único del maestro (Atributo añadido)
+            FirstName VARCHAR2(100) NOT NULL, -- Primer nombre del maestro
+            LastName VARCHAR2(100) NOT NULL, -- Apellido del maestro
+            Email VARCHAR2(150) NOT NULL UNIQUE, -- Correo electrónico del maestro (Atributo añadido, duplicado en AppUser)
+            RegistrationDate DATE NOT NULL, -- Fecha de registro del maestro
+            Photo BLOB, -- Foto del maestro
+            -- La relación UserID podría ser un atributo opcional o nulo si los maestros no siempre son usuarios
+            CONSTRAINT fk_user FOREIGN KEY (UserID) REFERENCES AppUser(UserID)
+        );
+
+        -- Creation of the Face table
+        CREATE TABLE Face (
+            FaceID NUMBER PRIMARY KEY, -- Clave primaria, identificador único de la imagen facial
+            TeacherID NUMBER NOT NULL, -- Clave foránea hacia la tabla Teacher
+            FaceImage BLOB NOT NULL, -- Imagen facial
+            Features CLOB NOT NULL, -- Características de la imagen facial
+            Name VARCHAR2(100), -- Nombre asociado a la imagen (Atributo añadido)
+            Path VARCHAR2(100), -- Ruta del archivo de la imagen (Atributo añadido)
+            CONSTRAINT fk_teacher FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID)
+        );
+
+        -- Creation of the Schedule table
+        CREATE TABLE Schedule (
+            ScheduleID NUMBER PRIMARY KEY, -- Clave primaria, identificador único del horario
+            TeacherID NUMBER NOT NULL, -- Clave foránea hacia la tabla Teacher
+            DayOfWeek VARCHAR2(15) NOT NULL, -- Día de la semana (reemplaza el atributo DAY)
+            StartTime TIMESTAMP NOT NULL, -- Hora de inicio
+            EndTime TIMESTAMP NOT NULL, -- Hora de fin
+            TotalHours NUMBER NOT NULL, -- Horas totales (Atributo añadido)
+            CONSTRAINT fk_teacher_schedule FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID)
+        );
+
+        -- Creation of the Attendance table
+        CREATE TABLE Attendance (
+            AttendanceID NUMBER PRIMARY KEY, -- Clave primaria, identificador único de la asistencia
+            TeacherID NUMBER NOT NULL, -- Clave foránea hacia la tabla Teacher
+            AttendanceCode VARCHAR2(10) NOT NULL, -- Código de asistencia (Atributo añadido)
+            RegisterDate TIMESTAMP NOT NULL, -- Fecha y hora de registro (renombrado desde Timestamp)
+            TotalHours NUMBER NOT NULL, -- Horas totales (Atributo añadido)
+            Late CHAR(1) CHECK (Late IN ('Y', 'N')), -- Indicador de tardanza (Atributo añadido)
+            DetectionCoordinates CLOB, -- Coordenadas de detección facial
+            Type VARCHAR2(10) NOT NULL, -- Tipo de asistencia
+            CONSTRAINT fk_teacher_attendance FOREIGN KEY (TeacherID) REFERENCES Teacher(TeacherID)
+        );
+
+PIPELINE Y BD:
+
+    1. Estructura General del Pipeline
+
+        Pipeline para el Sistema de Registro de Asistencia:
+
+            Detección de Rostros: Usar YOLO para detectar rostros en cada fotograma del video.
+            Reconocimiento de Rostros: Pasar las regiones detectadas (rostros) al modelo de reconocimiento facial entrenado (DeepFace) para identificar al individuo.
+            Etiquetado y Registro: Identificar al empleado y registrar la hora de entrada o salida en la base de datos Oracle.
+
+        Aplicación Web:
+
+            Entrenamiento del Modelo:
+
+            Los usuarios suben datasets a través de la interfaz web.
+            Las imágenes se envían al backend (Flask) para entrenar o actualizar el modelo de reconocimiento facial.
+        
+        Reconocimiento en Tiempo Real:
+            
+            El frontend, conectado a la cámara, envía fotogramas al backend en tiempo real.
+            El backend realiza la detección y reconocimiento, y devuelve la identificación al frontend, que puede mostrar el nombre y marcar la asistencia.
+
+    2. Arquitectura del Sistema
+
+        Frontend (React):
+
+            Captura la imagen en tiempo real desde la cámara.
+            Envía las imágenes al backend para su procesamiento.
+            Muestra el resultado devuelto (nombre del empleado, hora de entrada/salida).
+    
+        Backend (Flask):
+
+            Entrenamiento del Modelo:
+
+                API para recibir datasets e imágenes.
+                API para entrenar el modelo de reconocimiento facial con los nuevos datos.
+
+        Detección y Reconocimiento en Tiempo Real:
+
+                API para recibir fotogramas desde el frontend.
+                Realiza la detección de rostros con YOLO.
+                Reconoce a la persona usando el modelo entrenado (DeepFace).
+                Devuelve la identificación y registra la asistencia en la base de datos Oracle.
+
+    3. Base de Datos (Oracle):
+
+        Almacena los datos de empleados, sus características faciales, y registros de asistencia.
+
+    Resumen del Modelo de base de dato:
+
+        Este modelo de base de datos te permite manejar tanto la información de usuarios con roles como la gestión de asistencia de los maestros utilizando reconocimiento facial. Aquí están los puntos clave:
+
+            Usuarios y Roles: Permite la gestión de acceso al sistema por roles.
+            Maestros: Contiene información específica de los maestros, incluyendo fotografía.
+            Rostros: Guarda las imágenes de los rostros y sus descriptores para el reconocimiento facial.
+            Horarios: Define los horarios asignados a cada maestro.
+            Asistencias: Registra las entradas y salidas de los maestros detectados.
+
+    Modelo detallado con el tipo de dato, longitud, obligatoriedad y la explicación de cada atributo y tabla:
+
+        Usuarios (Tabla): Almacena la información de las personas que pueden acceder al sistema, como administradores y maestros.
+
+            UsuarioID (NUMBER): Primary Key, Identificador único para cada usuario.
+            Nombre (VARCHAR2(100), NOT NULL): Nombre del usuario, es obligatorio.
+            Apellido (VARCHAR2(100), NOT NULL): Apellido del usuario, es obligatorio.
+            Email (VARCHAR2(150), NOT NULL, UNIQUE): Correo electrónico del usuario, debe ser único y es obligatorio.
+            Contrasena (VARCHAR2(256), NOT NULL): Contraseña del usuario almacenada como hash, es obligatoria.
+            RolID (NUMBER, NOT NULL, Foreign Key de Roles): Rol asignado al usuario, es obligatorio.
+            FechaRegistro (DATE, NOT NULL): Fecha de registro del usuario en el sistema, es obligatoria.
+            MaestroID (NUMBER, Foreign Key de Maestros): Relaciona al usuario con el maestro correspondiente si aplica, es opcional.
+        
+        Roles (Tabla): Define los diferentes roles que un usuario puede tener en el sistema.
+
+            RolID (NUMBER): Primary Key, Identificador único para cada rol.
+            NombreRol (VARCHAR2(50), NOT NULL, UNIQUE): Nombre del rol, como "Admin" o "Maestro", es obligatorio y único.
+            FechaCreacion (DATE, NOT NULL): Fecha en que se creó el rol, es obligatoria.
+        
+        Maestros (Tabla): Almacena la información específica de los maestros que se registran en el sistema para el control de asistencia.
+
+            MaestroID (NUMBER): Primary Key, Identificador único para cada maestro.
+            UsuarioID (NUMBER, NOT NULL, Foreign Key de Usuarios): Relaciona al maestro con su cuenta de usuario, es obligatorio.
+            CodigoMaestro (VARCHAR2(10), NOT NULL, UNIQUE): Código único asignado al maestro, es obligatorio.
+            Nombre (VARCHAR2(100), NOT NULL): Nombre del maestro, es obligatorio.
+            Apellido (VARCHAR2(100), NOT NULL): Apellido del maestro, es obligatorio.
+            Email (VARCHAR2(150), NOT NULL, UNIQUE): Correo electrónico del maestro, es obligatorio (duplicado en Usuarios).
+            FechaRegistro (DATE, NOT NULL): Fecha en la que el maestro fue registrado, es obligatoria.
+            Fotografia (BLOB): Imagen del maestro, es opcional.
+        
+        Horarios (Tabla): Define los horarios laborales de los maestros para determinar las horas de entrada y salida esperadas.
+
+            HorarioID (NUMBER): Primary Key, Identificador único para cada horario.
+            MaestroID (NUMBER, NOT NULL, Foreign Key de Maestros): Relaciona el horario con un maestro específico, es obligatorio.
+            DiaSemana (VARCHAR2(15), NOT NULL): Día de la semana al que corresponde el horario, como "Lunes" o "Martes", es obligatorio.
+            HoraInicio (TIMESTAMP, NOT NULL): Hora de inicio del trabajo para el maestro en ese día específico, es obligatorio.
+            HoraFin (TIMESTAMP, NOT NULL): Hora de finalización del trabajo para el maestro en ese día específico, es obligatorio.
+            HorasTotales (NUMBER, NOT NULL): Número total de horas programadas en el horario, es obligatorio.
+        
+        Asistencias (Tabla): Registra las entradas y salidas de los maestros mediante el reconocimiento facial.
+
+            AsistenciaID (NUMBER): Primary Key, Identificador único para cada registro de asistencia.
+            MaestroID (NUMBER, NOT NULL, Foreign Key de Maestros): Relaciona el registro de asistencia con un maestro específico, es obligatorio.
+            CodigoAsistencia (VARCHAR2(10), NOT NULL): Código que describe el tipo de asistencia (por ejemplo, "Presente" o "Ausente"), es obligatorio.
+            FechaHora (TIMESTAMP, NOT NULL): Fecha y hora en que se registró la entrada o salida, es obligatorio.
+            HorasTotales (NUMBER, NOT NULL): Número total de horas de asistencia registradas, es obligatorio.
+            Tarde (CHAR(1), NOT NULL, CHECK (Tarde IN ('Y', 'N'))): Indicador de tardanza (Y para sí, N para no), es obligatorio.
+            CoordenadasDeteccion (CLOB): Datos opcionales de coordenadas generadas por YOLO durante la detección del rostro, es opcional.
+            Tipo (VARCHAR2(10), NOT NULL): Tipo de registro, ya sea "Entrada" o "Salida", es obligatorio.
+
+#################################################################################################################################################
+
+PLAN:
+
+    1. Integración de YOLO y DeepFace en Flask Backend
+
+        a. Detección de Rostros con YOLO
+
+            Código para Detección de Rostros: Desarrolla una función en el backend que reciba un fotograma (o imagen) y utilice YOLO para detectar rostros en la imagen.
+
+            Integración con Flask: Crea una ruta en Flask (/detect) que reciba las imágenes desde el frontend, ejecute la detección de rostros y devuelva las coordenadas de las caras detectadas.
+
+        b. Reconocimiento de Rostros con DeepFace
+
+            Código para Reconocimiento de Rostros: Desarrolla una función que tome las regiones de los rostros detectados y las pase al modelo DeepFace para su identificación.
+
+            Integración con Flask: Crea una ruta en Flask (/recognize) que reciba las coordenadas de las caras detectadas y las procese con DeepFace para devolver la identidad.
+
+    2. Conexión con la Base de Datos Oracle.
+
+        Registrar Asistencia: Una vez que tengas la identidad del rostro, necesitas registrar la hora de entrada/salida en la base de datos Oracle.
+
+        Configuración de la Base de Datos en Flask: Usa cx_Oracle para conectarte a la base de datos desde Flask y crear una función para registrar la asistencia.
+
+    3. Desarrollo del Frontend en React
+
+        Captura de Imágenes en Tiempo Real: Desarrolla un componente en React que capture imágenes de la cámara del usuario y las envíe al backend.
+
+        Mostrar Resultados: Desarrolla la funcionalidad para mostrar el nombre del empleado, junto con la hora de entrada o salida, en el frontend.
+
+    4. Pruebas y Depuración
+        Pruebas Unitarias: Desarrolla pruebas unitarias para cada parte del sistema, tanto en el backend como en el frontend.
+
+        Depuración: Ejecuta todo el pipeline, desde la captura de imágenes hasta el registro de asistencia, asegurándote de que cada parte funcione correctamente y de que los datos se almacenen adecuadamente en la base de datos.
+
+    5. Despliegue y Monitoreo
+
+        Despliegue en un entorno de producción: Asegúrate de que el entorno esté correctamente configurado para soportar la carga de trabajo, y considera usar herramientas de monitoreo para asegurar que todo funcione bien en producción.
+
+#################################################################################################################################################
+
+RESUMEN:
+    Resumen del Funcionamiento:
+        Detección de Rostros con YOLO:
+
+            El código utiliza YOLO para detectar rostros en la imagen enviada desde el frontend.
+
+        Reconocimiento de Rostros con DeepFace:
+
+            Cada rostro detectado se recorta y se pasa a DeepFace.find() para encontrar coincidencias en la base de datos.
+            
+            Se cuenta cuántas veces cada identidad aparece en los resultados.
+
+        Devolución de la Identidad:
+
+            Si una identidad aparece 10 o más veces, se devuelve esa identidad.
+
+            Si no se alcanzan las 10 coincidencias, se devuelve "Desconocido".
+
+            Este enfoque garantiza que el sistema pueda identificar a una persona con alta precisión y reducir el riesgo de falsos positivos.
+
+docker compose down && docker compose build && docker compose up -d
+
+docker exec -it flask_container /bin/bash
+
+python3 clean_images_database.py

@@ -1,0 +1,35 @@
+FROM python:3.8-slim
+
+# Instalar dependencias necesarias, incluyendo CMake y libGL
+RUN apt-get update && apt-get install -y \
+    wget \
+    nano \
+    vim \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    cmake \
+    && apt-get clean
+
+# Establecer el directorio de trabajo
+WORKDIR /app
+
+# Copiar el modelo Pre-trained YOLOv8-Face model.large al directorio /app
+COPY yolov8l-face-lindevs.pt /app/yolov8l-face-lindevs.pt
+
+# Copiar el archivo de requisitos e instalar dependencias
+COPY requirements.txt requirements.txt
+
+# Instalar dependencias desde requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt dill --upgrade pip
+
+# Instalar DeepFace
+RUN pip install deepface
+
+# Instalar ultralytics
+RUN pip install ultralytics
+
+# Copiar el código fuente en el contenedor
+COPY . .
+
+# Comando para ejecutar la aplicación Flask
+CMD ["flask", "run", "--host=0.0.0.0"]

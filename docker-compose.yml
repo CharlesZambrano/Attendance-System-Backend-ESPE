@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile.flask
+    container_name: flask_container
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./flask:/app
+      - /dev/dri:/dev/dri  # Añadir acceso a los gráficos integrados
+      - /dev/video0:/dev/video0  # Montar primera cámara
+      - /dev/video1:/dev/video1  # Montar segunda cámara (mismo dispositivo)
+    working_dir: /app
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app.py
+    command: flask run --host=0.0.0.0
+    networks:
+      - yolo-deepface-network
+
+networks:
+  yolo-deepface-network:
+    driver: bridge
