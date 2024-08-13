@@ -251,7 +251,7 @@ def recognize_faces():
 
             # Realizar el reconocimiento facial
             try:
-                results = DeepFace.find(face_img_resized, db_path=DEEPFACE_DB_PATH, enforce_detection=False, silent=True)
+                results = DeepFace.find(face_img_resized, db_path=DEEPFACE_DB_PATH, enforce_detection=False)
                 if results and isinstance(results, list):
                     for df in results:
                         if not df.empty:
