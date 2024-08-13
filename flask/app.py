@@ -39,6 +39,68 @@ if not os.path.exists(DEEPFACE_DB_PATH):
 # Umbral mínimo de confianza para la detección de rostros
 MIN_CONFIDENCE = 0.5
 
+# Cargar los clasificadores de OpenCV para detección de ojos y rostro
+eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+
+def eye_aspect_ratio(eye):
+    if eye.shape[0] != 6:
+        logger.info("EAR: Ojo con puntos insuficientes para cálculo de EAR")
+        return None  # No se puede calcular la relación de aspecto si no hay suficientes puntos
+
+    A = np.linalg.norm(eye[1] - eye[5])
+    B = np.linalg.norm(eye[2] - eye[4])
+    C = np.linalg.norm(eye[0] - eye[3])
+    ear = (A + B) / (2.0 * C)
+    
+    logger.info(f"EAR: {ear}")
+    return ear
+
+def detect_blink(eyes):
+    if len(eyes) == 2:
+        left_eye = eyes[0]
+        right_eye = eyes[1]
+        
+        left_ear = eye_aspect_ratio(left_eye)
+        right_ear = eye_aspect_ratio(right_eye)
+
+        if left_ear is None or right_ear is None:
+            logger.info("Blink detection: EAR no se pudo calcular para uno o ambos ojos")
+            return False
+
+        ear = (left_ear + right_ear) / 2.0
+        blink_threshold = 0.25
+        blink_detected = ear < blink_threshold
+
+        logger.info(f"Blink detection: EAR promedio = {ear}, Umbral = {blink_threshold}, Parpadeo detectado = {blink_detected}")
+        return blink_detected
+    else:
+        logger.info(f"Blink detection: Número de ojos detectados = {len(eyes)}")
+    return False
+
+def detect_eye_reflection(face_img, eyes):
+    gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+    for (ex, ey, ew, eh) in eyes:
+        eye = gray[ey:ey+eh, ex:ex+ew]
+        _, thresholded = cv2.threshold(eye, 42, 255, cv2.THRESH_BINARY)
+        contours, _ = cv2.findContours(thresholded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if len(contours) > 0:
+            logger.info("Reflection detection: Reflejo detectado en el ojo")
+            return True
+    logger.info("Reflection detection: No se detectó reflejo en los ojos")
+    return False
+
+def detect_liveness(face_img):
+    eyes = eye_cascade.detectMultiScale(face_img, 1.3, 5)
+    logger.info(f"Liveness detection: Número de ojos detectados = {len(eyes)}")
+    if detect_blink(eyes):
+        logger.info("Liveness detection: Parpadeo detectado, rostro vivo.")
+        return True
+    if detect_eye_reflection(face_img, eyes):
+        logger.info("Liveness detection: Reflejo detectado en los ojos, rostro vivo.")
+        return True
+    logger.info("Liveness detection: No se detectó vida en el rostro.")
+    return False
+
 @app.route('/detect', methods=['POST'])
 def detect_faces():
     try:
@@ -152,6 +214,11 @@ def recognize_faces():
 
             # Recortar la región de la imagen donde está el rostro
             face_img = img[y1:y2, x1:x2]
+
+            # Detección de vida
+            if not detect_liveness(face_img):
+                logger.info("No se detectó vida en el rostro.")
+                return jsonify({"identities": ["No se detectó un rostros real."]})
 
             # Preprocesamiento opcional: redimensionar el rostro para estandarizar (por ejemplo, a 224x224)
             face_img_resized = cv2.resize(face_img, (224, 224))
