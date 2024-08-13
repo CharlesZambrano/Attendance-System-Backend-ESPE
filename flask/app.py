@@ -244,7 +244,7 @@ def recognize_faces():
             # Detección de vida
             if not detect_liveness(face_img):
                 logger.info("No se detectó vida en el rostro.")
-                return jsonify({"identities": ["No se detectó un rostros real."]})
+                return jsonify({"identities": ["No se detectó un rostro real."]})
 
             # Preprocesamiento opcional: redimensionar el rostro para estandarizar (por ejemplo, a 224x224)
             face_img_resized = cv2.resize(face_img, (224, 224))
