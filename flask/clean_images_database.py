@@ -11,7 +11,7 @@ def clean_filename(filename):
 
 def clean_directory(directory):
     for root, dirs, files in os.walk(directory, topdown=False):
-        # Renombrar archivos primero
+        # Renombrar archivos
         for file in files:
             original_file_path = os.path.join(root, file)
             clean_file_name = clean_filename(file)
@@ -19,15 +19,6 @@ def clean_directory(directory):
             if original_file_path != clean_file_path:
                 os.rename(original_file_path, clean_file_path)
                 print(f"Renamed file: {original_file_path} -> {clean_file_path}")
-
-        # Renombrar directorios
-        for dir_name in dirs:
-            original_dir_path = os.path.join(root, dir_name)
-            clean_dir_name = clean_filename(dir_name)
-            clean_dir_path = os.path.join(root, clean_dir_name)
-            if original_dir_path != clean_dir_path:
-                os.rename(original_dir_path, clean_dir_path)
-                print(f"Renamed directory: {original_dir_path} -> {clean_dir_path}")
 
 # Path to your employee images database
 employee_db_path = '/app/employes_database'

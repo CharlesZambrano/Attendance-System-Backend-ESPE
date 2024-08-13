@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import time
+import unicodedata
 
 import cv2
 import numpy as np
@@ -41,6 +43,30 @@ MIN_CONFIDENCE = 0.5
 
 # Cargar los clasificadores de OpenCV para detección de ojos y rostro
 eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+
+def clean_filename(filename):
+    nfkd_form = unicodedata.normalize('NFKD', filename)
+    clean_name = "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+    clean_name = clean_name.replace(" ", "_")  # Opcional: Reemplazar espacios con guiones bajos
+    clean_name = clean_name.encode('ascii', 'ignore').decode('ascii')  # Eliminar cualquier carácter no ASCII
+    return clean_name
+
+def clean_directory(directory):
+    for root, dirs, files in os.walk(directory, topdown=False):
+        # Renombrar archivos
+        for file in files:
+            original_file_path = os.path.join(root, file)
+            clean_file_name = clean_filename(file)
+            clean_file_path = os.path.join(root, clean_file_name)
+            if original_file_path != clean_file_path:
+                os.rename(original_file_path, clean_file_path)
+                print(f"Renamed file: {original_file_path} -> {clean_file_path}")
+
+def detect_directory_changes(directory):
+    current_mod_time = max(
+        os.path.getmtime(root) for root, _, _ in os.walk(directory)
+    )
+    return current_mod_time
 
 def eye_aspect_ratio(eye):
     if eye.shape[0] != 6:
@@ -257,6 +283,19 @@ def recognize_faces():
         return jsonify({"error": "Ocurrió un error interno en el servidor."}), 500
 
 if __name__ == '__main__':
+    # Detectar si hay cambios en el directorio y limpiar si es necesario
+    last_mod_time = detect_directory_changes(DEEPFACE_DB_PATH)
+    clean_directory(DEEPFACE_DB_PATH)
+    
+    # Continuamente revisar si hay cambios en el directorio
+    while True:
+        current_mod_time = detect_directory_changes(DEEPFACE_DB_PATH)
+        if current_mod_time > last_mod_time:
+            logger.info("Cambios detectados en la base de datos. Ejecutando limpieza de nombres de archivos.")
+            clean_directory(DEEPFACE_DB_PATH)
+            last_mod_time = current_mod_time
+        time.sleep(5)  # Revisar cada 5 segundos
+
     # Ejecutar la aplicación Flask en modo de producción con waitress
     from waitress import serve
     serve(app, host='0.0.0.0', port=5000)
