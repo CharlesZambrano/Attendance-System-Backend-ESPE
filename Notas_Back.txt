@@ -288,8 +288,14 @@ RESUMEN:
 
             Este enfoque garantiza que el sistema pueda identificar a una persona con alta precisión y reducir el riesgo de falsos positivos.
 
-docker compose down && docker compose build && docker compose up -d
+DOCKER:
+    docker compose down && docker compose build && docker compose up -d
 
-docker exec -it flask_container /bin/bash
+    docker exec -it flask_container /bin/bash
 
-python3 clean_images_database.py
+    python3 clean_images_database.py
+
+ELIMINAR RAMAS:
+    git branch -d new-datasets
+
+    git push origin --delete new-datasets
