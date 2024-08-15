@@ -106,5 +106,7 @@ dist/
 nombres.txt
 Notas_Back.txt
 
+*.pt
+*.pkl
 #Servidor de flask
 # /flask/employes_database/
