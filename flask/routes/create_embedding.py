@@ -35,6 +35,7 @@ def create_embedding():
             logger.error("No se proporcionó el ID del maestro en la solicitud.")
             return jsonify({"error": "El ID del maestro es requerido."}), 400
 
+        # Generar el embedding usando "Facenet512"
         embedding_objs = DeepFace.represent(img_path=img, model_name="Facenet512")
         if not embedding_objs:
             logger.error("No se pudo generar el embedding del rostro.")

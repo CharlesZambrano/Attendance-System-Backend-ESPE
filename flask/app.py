@@ -6,7 +6,7 @@ from routes.recognize import recognize_bp
 from flask import Flask
 
 app = Flask(__name__)
-CORS(app)  # Habilitar CORS para aceptar solicitudes de cualquier origen
+CORS(app)
 
 # Registrar los blueprints
 app.register_blueprint(detect_bp)
@@ -19,16 +19,15 @@ if __name__ == '__main__':
 
     from utils import clean_directory, detect_directory_changes
 
-    # Configuración del logger
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
     DEEPFACE_DB_PATH = '/app/academic_staff_database'
-    
+
     # Detectar si hay cambios en el directorio y limpiar si es necesario
     last_mod_time = detect_directory_changes(DEEPFACE_DB_PATH)
     clean_directory(DEEPFACE_DB_PATH)
-    
+
     # Continuamente revisar si hay cambios en el directorio
     while True:
         current_mod_time = detect_directory_changes(DEEPFACE_DB_PATH)
