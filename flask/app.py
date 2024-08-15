@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Ruta del modelo YOLOv8
-YOLO_MODEL_PATH = '/app/yolov8l-face-lindevs.pt'
+YOLO_MODEL_PATH = '/app/yolov8x-face-lindevs.pt'
 
 # Verificar si el modelo existe
 if not os.path.exists(YOLO_MODEL_PATH):
