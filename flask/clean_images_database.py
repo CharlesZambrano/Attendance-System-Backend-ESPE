@@ -34,7 +34,7 @@ def clean_directory(directory):
                 print(f"Renamed file: {original_file_path} -> {clean_file_path}")
 
 # Ruta a tu base de datos de imágenes de empleados
-employee_db_path = '/app/employes_database'
+employee_db_path = '/app/academic_staff_database'
 
 # Limpiar el directorio y los archivos
 clean_directory(employee_db_path)
