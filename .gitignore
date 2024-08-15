@@ -105,4 +105,4 @@ build/
 dist/
 
 #Servidor de flask
-/flask/employes_database/
+# /flask/employes_database/
