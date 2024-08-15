@@ -104,5 +104,5 @@ deepface_weights/
 build/
 dist/
 
-/deepface/
-/yolo/
+#Servidor de flask
+/flask/employes_database/
