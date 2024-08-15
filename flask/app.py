@@ -147,6 +147,9 @@ def detect_faces():
             logger.error("No se pudo decodificar la imagen. Asegúrate de que el archivo sea una imagen válida.")
             return jsonify({"error": "No se pudo decodificar la imagen."}), 400
 
+        # Leer el parámetro opcional save_image
+        save_image = request.form.get('save_image', 'false').lower() == 'true'
+
         # Detección de rostros con YOLO
         results = model(img)
 
@@ -171,10 +174,29 @@ def detect_faces():
                     'class': int(cls)
                 }
 
-        if best_face:
-            response = {"faces": [best_face]}
-        else:
-            response = {"faces": []}
+        response = {"faces": [best_face]} if best_face else {"faces": []}
+
+        if best_face and save_image:
+            # Dibujar un rectángulo alrededor del rostro en la imagen original
+            x1, y1, x2, y2 = best_face['x1'], best_face['y1'], best_face['x2'], best_face['y2']
+            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+            # Opcional: Dibujar puntos clave en el rostro (si los tienes)
+            # Ejemplo de puntos clave ficticios
+            landmarks = [(int(x1 + (x2 - x1) * 0.3), int(y1 + (y2 - y1) * 0.3)),
+                         (int(x1 + (x2 - x1) * 0.7), int(y1 + (y2 - y1) * 0.3)),
+                         (int(x1 + (x2 - x1) * 0.5), int(y1 + (y2 - y1) * 0.6))]
+
+            for point in landmarks:
+                cv2.circle(img, point, 5, (0, 0, 255), -1)
+
+            # Guardar la imagen del rostro detectado con el rectángulo y puntos clave
+            output_path = "/app/detected_face_with_landmarks.jpg"  # Cambia la ruta si lo deseas
+            cv2.imwrite(output_path, img)
+            logger.info(f"Imagen del rostro guardada en {output_path}")
+            
+            # Incluir la ruta de la imagen en la respuesta si se guardó
+            response["image_path"] = output_path
 
         logger.info(f"/detect response: {response}")
         return jsonify(response), 200
