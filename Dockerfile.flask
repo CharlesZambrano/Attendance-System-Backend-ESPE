@@ -38,6 +38,9 @@ RUN pip install deepface
 # Instalar ultralytics
 RUN pip install ultralytics
 
+# Instalar werkzeug
+RUN pip install werkzeug
+
 # Copiar el código fuente en el contenedor
 COPY . .
 
