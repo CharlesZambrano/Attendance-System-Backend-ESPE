@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from db_connection import get_db_connection
 
@@ -10,19 +11,35 @@ role_bp = Blueprint('role', __name__)
 
 @role_bp.route('/role', methods=['POST'])
 def create_role():
+    cursor = None
+    conn = None
     try:
-        data = request.json
+        # Verificar que el contenido JSON esté presente
+        if not request.is_json:
+            return jsonify({"error": "El cuerpo de la solicitud debe estar en formato JSON."}), 400
+
+        data = request.get_json()
+
+        if not data or 'ROLENAME' not in data or 'CREATIONDATE' not in data:
+            return jsonify({"error": "Faltan datos requeridos: ROLENAME y CREATIONDATE."}), 400
+
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # Validación del formato de la fecha
+        try:
+            creationdate = datetime.strptime(data['CREATIONDATE'], '%Y-%m-%d').strftime('%Y-%m-%d')
+        except ValueError:
+            return jsonify({"error": "Formato de fecha inválido. Se espera 'YYYY-MM-DD'."}), 400
+
         cursor.execute(
             """
             INSERT INTO ROLE (ROLENAME, CREATIONDATE) 
-            VALUES (:rolename, :creationdate)
+            VALUES (:rolename, TO_DATE(:creationdate, 'YYYY-MM-DD'))
             """, 
             {
                 'rolename': data['ROLENAME'],
-                'creationdate': data['CREATIONDATE']
+                'creationdate': creationdate
             }
         )
         conn.commit()
@@ -31,8 +48,10 @@ def create_role():
         logger.exception("Error creando Role")
         return jsonify({"error": str(e)}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 @role_bp.route('/role/<int:roleid>', methods=['GET'])
 def get_role(roleid):
