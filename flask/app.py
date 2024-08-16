@@ -31,7 +31,8 @@ if __name__ == '__main__':
 
     from utils import clean_directory, detect_directory_changes
 
-    logging.basicConfig(level=logging.INFO)
+    # Configuración de logging para mostrar más detalles
+    logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
 
     DEEPFACE_DB_PATH = '/app/academic_staff_database'
@@ -49,5 +50,5 @@ if __name__ == '__main__':
             last_mod_time = current_mod_time
         time.sleep(5)
 
-    from waitress import serve
-    serve(app, host='0.0.0.0', port=5000)
+    # Habilitar modo debug
+    app.run(debug=True, use_reloader=False, host='0.0.0.0', port=5000)
