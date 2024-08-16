@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+import cx_Oracle
 from db_connection import get_db_connection
 from werkzeug.security import generate_password_hash
 
@@ -9,6 +10,18 @@ from flask import Blueprint, jsonify, request
 logger = logging.getLogger(__name__)
 
 appuser_bp = Blueprint('appuser', __name__)
+
+def generate_unique_teachercode(cursor):
+    while True:
+        random_number = random.randint(1, 999)
+        teachercode = f"TC{random_number:03}"
+        
+        cursor.execute(
+            "SELECT COUNT(*) FROM TEACHER WHERE TEACHERCODE = :teachercode", 
+            {'teachercode': teachercode}
+        )
+        if cursor.fetchone()[0] == 0:
+            return teachercode
 
 @appuser_bp.route('/appuser', methods=['POST'])
 def create_appuser():
@@ -26,11 +39,27 @@ def create_appuser():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
+        # Verificar si el email ya existe en APPUSER
+        cursor.execute(
+            "SELECT COUNT(*) FROM APPUSER WHERE EMAIL = :email", 
+            {'email': data['EMAIL']}
+        )
+        if cursor.fetchone()[0] > 0:
+            return jsonify({"error": "El email ya está registrado en el sistema."}), 400
+
+        # Variable para capturar el USERID generado
         cursor.execute(
             """
-            INSERT INTO APPUSER (FIRSTNAME, LASTNAME, EMAIL, PASSWORD, ROLEID, REGISTRATIONDATE, TEACHERID) 
-            VALUES (:firstname, :lastname, :email, :password, :roleid, TO_DATE(:registrationdate, 'YYYY-MM-DD'), :teacherid)
+            DECLARE
+                v_userid NUMBER;
+            BEGIN
+                INSERT INTO APPUSER (FIRSTNAME, LASTNAME, EMAIL, PASSWORD, ROLEID, REGISTRATIONDATE, TEACHERID) 
+                VALUES (:firstname, :lastname, :email, :password, :roleid, TO_DATE(:registrationdate, 'YYYY-MM-DD'), NULL)
+                RETURNING USERID INTO v_userid;
+
+                :user_id := v_userid;
+            END;
             """, 
             {
                 'firstname': data['FIRSTNAME'],
@@ -39,13 +68,65 @@ def create_appuser():
                 'password': hashed_password,
                 'roleid': data['ROLEID'],
                 'registrationdate': registrationdate,
-                'teacherid': data.get('TEACHERID')  # Es opcional
+                'user_id': cursor.var(int)
             }
         )
+
+        # Obtener el ID del usuario recién creado
+        user_id = cursor.bindvars['user_id'].getvalue()
+
+        # Generar un código de maestro único
+        teachercode = generate_unique_teachercode(cursor)
+
+        # Inserción en la tabla TEACHER con RETURNING INTO
+        cursor.execute(
+            """
+            DECLARE
+                v_teacherid NUMBER;
+            BEGIN
+                INSERT INTO TEACHER (USERID, TEACHERCODE, FIRSTNAME, LASTNAME, EMAIL, REGISTRATIONDATE, PHOTO) 
+                VALUES (:userid, :teachercode, :firstname, :lastname, :email, TO_DATE(:registrationdate, 'YYYY-MM-DD'), NULL)
+                RETURNING TEACHERID INTO v_teacherid;
+
+                :teacher_id := v_teacherid;
+            END;
+            """,
+            {
+                'userid': user_id,
+                'teachercode': teachercode,  # Código único generado
+                'firstname': data['FIRSTNAME'],
+                'lastname': data['LASTNAME'],
+                'email': data['EMAIL'],
+                'registrationdate': registrationdate,
+                'teacher_id': cursor.var(int)
+            }
+        )
+
+        # Obtener el ID del maestro recién creado
+        teacher_id = cursor.bindvars['teacher_id'].getvalue()
+
+        # Actualizar el AppUser con el TEACHERID
+        cursor.execute(
+            """
+            UPDATE APPUSER
+            SET TEACHERID = :teacherid
+            WHERE USERID = :userid
+            """,
+            {
+                'teacherid': teacher_id,
+                'userid': user_id
+            }
+        )
+
         conn.commit()
-        return jsonify({"message": "AppUser creado exitosamente"}), 201
+        return jsonify({"message": "AppUser y Teacher creados exitosamente", "teachercode": teachercode}), 201
+    except cx_Oracle.IntegrityError as e:
+        logger.exception("Error de integridad de base de datos creando AppUser y Teacher")
+        conn.rollback()  # Hacer rollback en caso de error
+        return jsonify({"error": "Error de integridad: " + str(e)}), 400
     except Exception as e:
-        logger.exception("Error creando AppUser")
+        logger.exception("Error creando AppUser y Teacher")
+        conn.rollback()  # Hacer rollback en caso de error
         return jsonify({"error": str(e)}), 500
     finally:
         cursor.close()
