@@ -3,13 +3,44 @@ import logging
 
 import cv2
 import numpy as np
-from db_connection import insert_face_data
+from db_connection import get_db_connection
 from deepface import DeepFace
 
 from flask import Blueprint, jsonify, request
 
 logger = logging.getLogger(__name__)
 embedding_bp = Blueprint('create_embedding', __name__)
+
+def insert_face_data(maestro_id, image_blob, embedding_str):
+    """
+    Inserta datos faciales en la tabla Rostros.
+    """
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Preparar la consulta de inserción
+        sql = """
+        INSERT INTO Rostros (MaestroID, ImagenRostro, Caracteristicas)
+        VALUES (:maestro_id, :image_blob, :embedding_str)
+        """
+        cursor.execute(sql, [maestro_id, image_blob, embedding_str])
+
+        # Confirmar la transacción
+        connection.commit()
+        print("Datos insertados correctamente.")
+    except cx_Oracle.DatabaseError as e:
+        print(f"Error al insertar datos en la base de datos: {e}")
+        if connection:
+            connection.rollback()
+        raise
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 @embedding_bp.route('/create_embedding', methods=['POST'])
 def create_embedding():

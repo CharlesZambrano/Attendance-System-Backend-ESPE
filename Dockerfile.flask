@@ -44,6 +44,9 @@ RUN pip install werkzeug
 # Instalar pytz
 RUN pip install pytz
 
+# Instalar pytz
+RUN pip install openpyxl
+
 # Copiar el código fuente en el contenedor
 COPY . .
 
