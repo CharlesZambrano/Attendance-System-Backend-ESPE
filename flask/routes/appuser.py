@@ -1,4 +1,5 @@
 import logging
+import random
 from datetime import datetime
 
 import cx_Oracle
@@ -11,17 +12,17 @@ logger = logging.getLogger(__name__)
 
 appuser_bp = Blueprint('appuser', __name__)
 
-def generate_unique_teachercode(cursor):
+def generate_unique_professorcode(cursor):
     while True:
         random_number = random.randint(1, 999)
-        teachercode = f"TC{random_number:03}"
+        professorcode = f"PC{random_number:03}"
         
         cursor.execute(
-            "SELECT COUNT(*) FROM TEACHER WHERE TEACHERCODE = :teachercode", 
-            {'teachercode': teachercode}
+            "SELECT COUNT(*) FROM PROFESSOR WHERE PROFESSORCODE = :professorcode", 
+            {'professorcode': professorcode}
         )
         if cursor.fetchone()[0] == 0:
-            return teachercode
+            return professorcode
 
 @appuser_bp.route('/appuser', methods=['POST'])
 def create_appuser():
@@ -54,7 +55,7 @@ def create_appuser():
             DECLARE
                 v_userid NUMBER;
             BEGIN
-                INSERT INTO APPUSER (FIRSTNAME, LASTNAME, EMAIL, PASSWORD, ROLEID, REGISTRATIONDATE, TEACHERID) 
+                INSERT INTO APPUSER (FIRSTNAME, LASTNAME, EMAIL, PASSWORD, ROLEID, REGISTRATIONDATE, PROFESSORID) 
                 VALUES (:firstname, :lastname, :email, :password, :roleid, TO_DATE(:registrationdate, 'YYYY-MM-DD'), NULL)
                 RETURNING USERID INTO v_userid;
 
@@ -75,57 +76,59 @@ def create_appuser():
         # Obtener el ID del usuario recién creado
         user_id = cursor.bindvars['user_id'].getvalue()
 
-        # Generar un código de maestro único
-        teachercode = generate_unique_teachercode(cursor)
+        # Generar un código de profesor único
+        professorcode = generate_unique_professorcode(cursor)
 
-        # Inserción en la tabla TEACHER con RETURNING INTO
+        # Inserción en la tabla PROFESSOR con RETURNING INTO
         cursor.execute(
             """
             DECLARE
-                v_teacherid NUMBER;
+                v_professorid NUMBER;
             BEGIN
-                INSERT INTO TEACHER (USERID, TEACHERCODE, FIRSTNAME, LASTNAME, EMAIL, REGISTRATIONDATE, PHOTO) 
-                VALUES (:userid, :teachercode, :firstname, :lastname, :email, TO_DATE(:registrationdate, 'YYYY-MM-DD'), NULL)
-                RETURNING TEACHERID INTO v_teacherid;
+                INSERT INTO PROFESSOR (USERID, PROFESSORCODE, FIRSTNAME, LASTNAME, EMAIL, REGISTRATIONDATE, PHOTO, UNIVERSITYID, IDCARD) 
+                VALUES (:userid, :professorcode, :firstname, :lastname, :email, TO_DATE(:registrationdate, 'YYYY-MM-DD'), NULL, :universityid, :idcard)
+                RETURNING PROFESSORID INTO v_professorid;
 
-                :teacher_id := v_teacherid;
+                :professor_id := v_professorid;
             END;
             """,
             {
                 'userid': user_id,
-                'teachercode': teachercode,  # Código único generado
+                'professorcode': professorcode,  # Código único generado
                 'firstname': data['FIRSTNAME'],
                 'lastname': data['LASTNAME'],
                 'email': data['EMAIL'],
                 'registrationdate': registrationdate,
-                'teacher_id': cursor.var(int)
+                'universityid': data['UNIVERSITYID'],
+                'idcard': data['IDCARD'],
+                'professor_id': cursor.var(int)
             }
         )
 
-        # Obtener el ID del maestro recién creado
-        teacher_id = cursor.bindvars['teacher_id'].getvalue()
+        # Obtener el ID del profesor recién creado
+        professor_id = cursor.bindvars['professor_id'].getvalue()
 
-        # Actualizar el AppUser con el TEACHERID
+        # Actualizar el AppUser con el PROFESSORID
         cursor.execute(
             """
             UPDATE APPUSER
-            SET TEACHERID = :teacherid
+            SET PROFESSORID = :professorid
             WHERE USERID = :userid
             """,
             {
-                'teacherid': teacher_id,
+                'professorid': professor_id,
                 'userid': user_id
             }
         )
 
         conn.commit()
-        return jsonify({"message": "AppUser y Teacher creados exitosamente", "teachercode": teachercode}), 201
+        return jsonify({"message": "AppUser y Professor creados exitosamente", "professorcode": professorcode}), 201
     except cx_Oracle.IntegrityError as e:
-        logger.exception("Error de integridad de base de datos creando AppUser y Teacher")
+        logger.exception("Error de integridad de base de datos creando AppUser y Professor")
         conn.rollback()  # Hacer rollback en caso de error
         return jsonify({"error": "Error de integridad: " + str(e)}), 400
     except Exception as e:
-        logger.exception("Error creando AppUser y Teacher")
+        logger.exception("Error creando AppUser y Professor")
         conn.rollback()  # Hacer rollback en caso de error
         return jsonify({"error": str(e)}), 500
     finally:
