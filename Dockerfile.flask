@@ -41,6 +41,9 @@ RUN pip install ultralytics
 # Instalar werkzeug
 RUN pip install werkzeug
 
+# Instalar pytz
+RUN pip install pytz
+
 # Copiar el código fuente en el contenedor
 COPY . .
 

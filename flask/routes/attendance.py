@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 
+import pytz
 from db_connection import get_db_connection
 
 from flask import Blueprint, jsonify, request
@@ -35,19 +36,28 @@ def create_attendance():
     conn = None
     try:
         data = request.json
+        logger.info(f"Datos recibidos en la solicitud: {data}")
+
         teacher_id = data['TEACHERID']
-        current_time = datetime.now()
+        
+        # Obtener la hora actual en la zona horaria de Ecuador
+        ecuador_tz = pytz.timezone('America/Guayaquil')
+        current_time = datetime.now(ecuador_tz)
+        logger.info(f"Hora actual en Ecuador: {current_time}")
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
         # Obtener el día de la semana en inglés y mapearlo al español
-        day_of_week_english = current_time.strftime('%A').upper()  # Ejemplo: "FRIDAY"
+        day_of_week_english = current_time.strftime('%A').upper()
         day_of_week = days_mapping.get(day_of_week_english, None)
+        logger.info(f"Día de la semana mapeado: {day_of_week_english} -> {day_of_week}")
 
         if day_of_week is None:
-            return jsonify({"error": f"No se pudo mapear el día de la semana {day_of_week_english}"}), 500
-        
+            error_message = f"No se pudo mapear el día de la semana {day_of_week_english}"
+            logger.error(error_message)
+            return jsonify({"error": error_message}), 500
+
         cursor.execute(
             """
             SELECT * FROM SCHEDULE WHERE TEACHERID = :teacherid AND DAYOFWEEK = :dayofweek
@@ -55,55 +65,59 @@ def create_attendance():
             {'teacherid': teacher_id, 'dayofweek': day_of_week}
         )
         rows = cursor.fetchall()
+        logger.info(f"Horarios obtenidos de la base de datos: {rows}")
 
         if not rows:
-            return jsonify({"error": f"No se encontraron horarios para el maestro hoy ({day_of_week})"}), 404
+            error_message = f"No se encontraron horarios para el maestro hoy ({day_of_week})"
+            logger.warning(error_message)
+            return jsonify({"error": error_message}), 404
 
-        # Convertir cada fila en un diccionario
         schedules = [dict_factory(cursor, row) for row in rows]
 
-        # Paso 2: Determinar la franja horaria correcta con ventana de 10 minutos antes y después
+        # Convertir las horas de inicio y fin a timezone-aware datetime en la zona horaria de Ecuador
         for schedule in schedules:
-            start_time = schedule['starttime']
-            end_time = schedule['endtime']
+            start_time = schedule['starttime'].replace(tzinfo=ecuador_tz)
+            end_time = schedule['endtime'].replace(tzinfo=ecuador_tz)
 
-            # Imprimir valores para depuración
-            print(f"current_time={current_time}, start_time={start_time}, end_time={end_time}")
+            logger.info(f"Comparando tiempos: current_time={current_time}, start_time={start_time}, end_time={end_time}")
 
-            # Verificar si la hora actual está dentro de la ventana de 10 minutos antes o después del inicio o fin
             if start_time - timedelta(minutes=10) <= current_time <= start_time + timedelta(minutes=10):
-                print("Coincidencia encontrada: Entrada")
+                logger.info("Coincidencia encontrada: Entrada")
                 attendance_type = "Entrada"
             elif end_time - timedelta(minutes=10) <= current_time <= end_time + timedelta(minutes=10):
-                print("Coincidencia encontrada: Salida")
+                logger.info("Coincidencia encontrada: Salida")
                 attendance_type = "Salida"
             else:
                 continue
 
-            # Calcular tardanza
             late = 'N'
             if attendance_type == "Entrada" and current_time > start_time:
                 late = 'Y'
+                logger.info("Entrada tardía detectada")
 
-            # Paso 3: Insertar el registro de asistencia
             cursor.execute(
                 """
                 INSERT INTO ATTENDANCE (TEACHERID, ATTENDANCECODE, REGISTERDATE, TOTALHOURS, LATE, DETECTIONCOORDINATES, TYPE) 
-                VALUES (:teacherid, :attendancecode, SYSTIMESTAMP, :totalhours, :late, :detectioncoordinates, :type)
+                VALUES (:teacherid, :attendancecode, :registerdate, :totalhours, :late, :detectioncoordinates, :type)
                 """, 
                 {
                     'teacherid': teacher_id,
                     'attendancecode': data['ATTENDANCECODE'],
+                    'registerdate': current_time,  # Usar current_time que ya tiene la zona horaria correcta
                     'totalhours': schedule['totalhours'],
                     'late': late,
                     'detectioncoordinates': data.get('DETECTIONCOORDINATES'),
                     'type': attendance_type
                 }
             )
+            
             conn.commit()
+            logger.info(f"Asistencia de {attendance_type} registrada exitosamente para el maestro {teacher_id}")
             return jsonify({"message": f"Asistencia de {attendance_type} registrada exitosamente"}), 201
-        
-        return jsonify({"error": "La hora actual no coincide con ninguna franja horaria permitida"}), 400
+
+        error_message = "La hora actual no coincide con ninguna franja horaria permitida"
+        logger.warning(error_message)
+        return jsonify({"error": error_message}), 400
 
     except Exception as e:
         logger.exception("Error al crear Asistencia")
