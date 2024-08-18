@@ -195,3 +195,24 @@ def delete_professor(professor_id):
     finally:
         cursor.close()
         conn.close()
+
+
+@professor_bp.route('/professor/id_card/<string:id_card>', methods=['GET'])
+def get_professor_by_id_card(id_card):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM PROFESSOR WHERE ID_CARD = :id_card", {'id_card': id_card})
+        professor = cursor.fetchone()
+
+        if professor is None:
+            return jsonify({"error": "Professor no encontrado"}), 404
+
+        return jsonify(dict(zip([key[0] for key in cursor.description], professor))), 200
+    except Exception as e:
+        logger.exception("Error obteniendo Professor por ID_CARD")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
