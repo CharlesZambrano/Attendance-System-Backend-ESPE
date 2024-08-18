@@ -53,13 +53,13 @@ def create_role():
         if conn:
             conn.close()
 
-@role_bp.route('/role/<int:roleid>', methods=['GET'])
-def get_role(roleid):
+@role_bp.route('/role/<int:role_id>', methods=['GET'])
+def get_role(role_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM ROLE WHERE ROLEID = :roleid", {'roleid': roleid})
+        cursor.execute("SELECT * FROM ROLE WHERE ROLE_ID = :role_id", {'role_id': role_id})
         role = cursor.fetchone()
         
         if role is None:
@@ -73,8 +73,8 @@ def get_role(roleid):
         cursor.close()
         conn.close()
 
-@role_bp.route('/role/<int:roleid>', methods=['PUT'])
-def update_role(roleid):
+@role_bp.route('/role/<int:role_id>', methods=['PUT'])
+def update_role(role_id):
     try:
         data = request.json
         conn = get_db_connection()
@@ -84,11 +84,11 @@ def update_role(roleid):
             """
             UPDATE ROLE 
             SET ROLENAME = :rolename
-            WHERE ROLEID = :roleid
+            WHERE ROLE_ID = :role_id
             """,
             {
                 'rolename': data['ROLENAME'],
-                'roleid': roleid
+                'role_id': role_id
             }
         )
         conn.commit()
@@ -100,13 +100,13 @@ def update_role(roleid):
         cursor.close()
         conn.close()
 
-@role_bp.route('/role/<int:roleid>', methods=['DELETE'])
-def delete_role(roleid):
+@role_bp.route('/role/<int:role_id>', methods=['DELETE'])
+def delete_role(role_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("DELETE FROM ROLE WHERE ROLEID = :roleid", {'roleid': roleid})
+        cursor.execute("DELETE FROM ROLE WHERE ROLE_ID = :role_id", {'role_id': role_id})
         conn.commit()
         return jsonify({"message": "Role eliminado exitosamente"}), 200
     except Exception as e:

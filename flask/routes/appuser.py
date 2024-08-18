@@ -12,17 +12,17 @@ logger = logging.getLogger(__name__)
 
 appuser_bp = Blueprint('appuser', __name__)
 
-def generate_unique_professorcode(cursor):
+def generate_unique_professor_code(cursor):
     while True:
         random_number = random.randint(1, 999)
-        professorcode = f"PC{random_number:03}"
+        professor_code = f"PC{random_number:03}"
         
         cursor.execute(
-            "SELECT COUNT(*) FROM PROFESSOR WHERE PROFESSORCODE = :professorcode", 
-            {'professorcode': professorcode}
+            "SELECT COUNT(*) FROM PROFESSOR WHERE PROFESSOR_CODE = :professor_code", 
+            {'professor_code': professor_code}
         )
         if cursor.fetchone()[0] == 0:
-            return professorcode
+            return professor_code
 
 @appuser_bp.route('/appuser', methods=['POST'])
 def create_appuser():
@@ -31,7 +31,7 @@ def create_appuser():
         
         # Validación del formato de la fecha
         try:
-            registrationdate = datetime.strptime(data['REGISTRATIONDATE'], '%Y-%m-%d').strftime('%Y-%m-%d')
+            registration_date = datetime.strptime(data['REGISTRATION_DATE'], '%Y-%m-%d').strftime('%Y-%m-%d')
         except ValueError:
             return jsonify({"error": "Formato de fecha inválido. Se espera 'YYYY-MM-DD'."}), 400
 
@@ -41,34 +41,34 @@ def create_appuser():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verificar si el email ya existe en APPUSER
+        # Verificar si el email ya existe en APP_USER
         cursor.execute(
-            "SELECT COUNT(*) FROM APPUSER WHERE EMAIL = :email", 
+            "SELECT COUNT(*) FROM APP_USER WHERE EMAIL = :email", 
             {'email': data['EMAIL']}
         )
         if cursor.fetchone()[0] > 0:
             return jsonify({"error": "El email ya está registrado en el sistema."}), 400
 
-        # Variable para capturar el USERID generado
+        # Variable para capturar el USER_ID generado
         cursor.execute(
             """
             DECLARE
-                v_userid NUMBER;
+                v_user_id NUMBER;
             BEGIN
-                INSERT INTO APPUSER (FIRSTNAME, LASTNAME, EMAIL, PASSWORD, ROLEID, REGISTRATIONDATE, PROFESSORID) 
-                VALUES (:firstname, :lastname, :email, :password, :roleid, TO_DATE(:registrationdate, 'YYYY-MM-DD'), NULL)
-                RETURNING USERID INTO v_userid;
+                INSERT INTO APP_USER (FIRST_NAME, LAST_NAME, EMAIL, PASSWORD, ROLE_ID, REGISTRATION_DATE, PROFESSOR_ID) 
+                VALUES (:first_name, :last_name, :email, :password, :role_id, TO_DATE(:registration_date, 'YYYY-MM-DD'), NULL)
+                RETURNING USER_ID INTO v_user_id;
 
-                :user_id := v_userid;
+                :user_id := v_user_id;
             END;
             """, 
             {
-                'firstname': data['FIRSTNAME'],
-                'lastname': data['LASTNAME'],
+                'first_name': data['FIRST_NAME'],
+                'last_name': data['LAST_NAME'],
                 'email': data['EMAIL'],
                 'password': hashed_password,
-                'roleid': data['ROLEID'],
-                'registrationdate': registrationdate,
+                'role_id': data['ROLE_ID'],
+                'registration_date': registration_date,
                 'user_id': cursor.var(int)
             }
         )
@@ -77,30 +77,30 @@ def create_appuser():
         user_id = cursor.bindvars['user_id'].getvalue()
 
         # Generar un código de profesor único
-        professorcode = generate_unique_professorcode(cursor)
+        professor_code = generate_unique_professor_code(cursor)
 
         # Inserción en la tabla PROFESSOR con RETURNING INTO
         cursor.execute(
             """
             DECLARE
-                v_professorid NUMBER;
+                v_professor_id NUMBER;
             BEGIN
-                INSERT INTO PROFESSOR (USERID, PROFESSORCODE, FIRSTNAME, LASTNAME, EMAIL, REGISTRATIONDATE, PHOTO, UNIVERSITYID, IDCARD) 
-                VALUES (:userid, :professorcode, :firstname, :lastname, :email, TO_DATE(:registrationdate, 'YYYY-MM-DD'), NULL, :universityid, :idcard)
-                RETURNING PROFESSORID INTO v_professorid;
+                INSERT INTO PROFESSOR (USER_ID, PROFESSOR_CODE, FIRST_NAME, LAST_NAME, EMAIL, REGISTRATION_DATE, PHOTO, UNIVERSITY_ID, ID_CARD) 
+                VALUES (:user_id, :professor_code, :first_name, :last_name, :email, TO_DATE(:registration_date, 'YYYY-MM-DD'), NULL, :university_id, :id_card)
+                RETURNING PROFESSOR_ID INTO v_professor_id;
 
-                :professor_id := v_professorid;
+                :professor_id := v_professor_id;
             END;
             """,
             {
-                'userid': user_id,
-                'professorcode': professorcode,  # Código único generado
-                'firstname': data['FIRSTNAME'],
-                'lastname': data['LASTNAME'],
+                'user_id': user_id,
+                'professor_code': professor_code,  # Código único generado
+                'first_name': data['FIRST_NAME'],
+                'last_name': data['LAST_NAME'],
                 'email': data['EMAIL'],
-                'registrationdate': registrationdate,
-                'universityid': data['UNIVERSITYID'],
-                'idcard': data['IDCARD'],
+                'registration_date': registration_date,
+                'university_id': data['UNIVERSITY_ID'],
+                'id_card': data['ID_CARD'],
                 'professor_id': cursor.var(int)
             }
         )
@@ -108,21 +108,21 @@ def create_appuser():
         # Obtener el ID del profesor recién creado
         professor_id = cursor.bindvars['professor_id'].getvalue()
 
-        # Actualizar el AppUser con el PROFESSORID
+        # Actualizar el AppUser con el PROFESSOR_ID
         cursor.execute(
             """
-            UPDATE APPUSER
-            SET PROFESSORID = :professorid
-            WHERE USERID = :userid
+            UPDATE APP_USER
+            SET PROFESSOR_ID = :professor_id
+            WHERE USER_ID = :user_id
             """,
             {
-                'professorid': professor_id,
-                'userid': user_id
+                'professor_id': professor_id,
+                'user_id': user_id
             }
         )
 
         conn.commit()
-        return jsonify({"message": "AppUser y Professor creados exitosamente", "professorcode": professorcode}), 201
+        return jsonify({"message": "AppUser y Professor creados exitosamente", "professor_code": professor_code}), 201
     except cx_Oracle.IntegrityError as e:
         logger.exception("Error de integridad de base de datos creando AppUser y Professor")
         conn.rollback()  # Hacer rollback en caso de error
@@ -135,13 +135,13 @@ def create_appuser():
         cursor.close()
         conn.close()
 
-@appuser_bp.route('/appuser/<int:userid>', methods=['GET'])
-def get_appuser(userid):
+@appuser_bp.route('/appuser/<int:user_id>', methods=['GET'])
+def get_appuser(user_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM APPUSER WHERE USERID = :userid", {'userid': userid})
+        cursor.execute("SELECT * FROM APP_USER WHERE USER_ID = :user_id", {'user_id': user_id})
         appuser = cursor.fetchone()
         
         if appuser is None:
@@ -155,8 +155,8 @@ def get_appuser(userid):
         cursor.close()
         conn.close()
 
-@appuser_bp.route('/appuser/<int:userid>', methods=['PUT'])
-def update_appuser(userid):
+@appuser_bp.route('/appuser/<int:user_id>', methods=['PUT'])
+def update_appuser(user_id):
     try:
         data = request.json
         conn = get_db_connection()
@@ -167,19 +167,19 @@ def update_appuser(userid):
 
         cursor.execute(
             """
-            UPDATE APPUSER 
-            SET FIRSTNAME = :firstname, LASTNAME = :lastname, EMAIL = :email, PASSWORD = :password, 
-                ROLEID = :roleid, TEACHERID = :teacherid
-            WHERE USERID = :userid
+            UPDATE APP_USER 
+            SET FIRST_NAME = :first_name, LAST_NAME = :last_name, EMAIL = :email, PASSWORD = :password, 
+                ROLE_ID = :role_id, TEACHERID = :teacherid
+            WHERE USER_ID = :user_id
             """,
             {
-                'firstname': data['FIRSTNAME'],
-                'lastname': data['LASTNAME'],
+                'first_name': data['FIRST_NAME'],
+                'last_name': data['LAST_NAME'],
                 'email': data['EMAIL'],
                 'password': hashed_password,
-                'roleid': data['ROLEID'],
+                'role_id': data['ROLE_ID'],
                 'teacherid': data.get('TEACHERID'),
-                'userid': userid
+                'user_id': user_id
             }
         )
         conn.commit()
@@ -191,13 +191,13 @@ def update_appuser(userid):
         cursor.close()
         conn.close()
 
-@appuser_bp.route('/appuser/<int:userid>', methods=['DELETE'])
-def delete_appuser(userid):
+@appuser_bp.route('/appuser/<int:user_id>', methods=['DELETE'])
+def delete_appuser(user_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("DELETE FROM APPUSER WHERE USERID = :userid", {'userid': userid})
+        cursor.execute("DELETE FROM APP_USER WHERE USER_ID = :user_id", {'user_id': user_id})
         conn.commit()
         return jsonify({"message": "AppUser eliminado exitosamente"}), 200
     except Exception as e:

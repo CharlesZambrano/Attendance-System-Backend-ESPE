@@ -16,7 +16,7 @@ def create_professor():
 
         # Validación del formato de la fecha
         try:
-            registrationdate = datetime.strptime(data['REGISTRATIONDATE'], '%Y-%m-%d').strftime('%Y-%m-%d')
+            registration_date = datetime.strptime(data['REGISTRATION_DATE'], '%Y-%m-%d').strftime('%Y-%m-%d')
         except ValueError:
             return jsonify({"error": "Formato de fecha inválido. Se espera 'YYYY-MM-DD'."}), 400
 
@@ -25,19 +25,19 @@ def create_professor():
 
         cursor.execute(
             """
-            INSERT INTO PROFESSOR (USERID, PROFESSORCODE, FIRSTNAME, LASTNAME, EMAIL, REGISTRATIONDATE, PHOTO, UNIVERSITYID, IDCARD) 
-            VALUES (:userid, :professorcode, :firstname, :lastname, :email, TO_DATE(:registrationdate, 'YYYY-MM-DD'), :photo, :universityid, :idcard)
+            INSERT INTO PROFESSOR (USER_ID, PROFESSOR_CODE, FIRST_NAME, LAST_NAME, EMAIL, REGISTRATION_DATE, PHOTO, UNIVERSITY_ID, ID_CARD) 
+            VALUES (:user_id, :professor_code, :first_name, :last_name, :email, TO_DATE(:registration_date, 'YYYY-MM-DD'), :photo, :university_id, :id_card)
             """,
             {
-                'userid': data['USERID'],
-                'professorcode': data['PROFESSORCODE'],
-                'firstname': data['FIRSTNAME'],
-                'lastname': data['LASTNAME'],
+                'user_id': data['USER_ID'],
+                'professor_code': data['PROFESSOR_CODE'],
+                'first_name': data['FIRST_NAME'],
+                'last_name': data['LAST_NAME'],
                 'email': data['EMAIL'],
-                'registrationdate': registrationdate,
+                'registration_date': registration_date,
                 'photo': data.get('PHOTO'),  # Es opcional
-                'universityid': data['UNIVERSITYID'],
-                'idcard': data['IDCARD']
+                'university_id': data['UNIVERSITY_ID'],
+                'id_card': data['ID_CARD']
             }
         )
         conn.commit()
@@ -49,13 +49,13 @@ def create_professor():
         cursor.close()
         conn.close()
 
-@professor_bp.route('/professor/<int:professorid>', methods=['GET'])
-def get_professor(professorid):
+@professor_bp.route('/professor/<int:professor_id>', methods=['GET'])
+def get_professor(professor_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT * FROM PROFESSOR WHERE PROFESSORID = :professorid", {'professorid': professorid})
+        cursor.execute("SELECT * FROM PROFESSOR WHERE PROFESSOR_ID = :professor_id", {'professor_id': professor_id})
         professor = cursor.fetchone()
 
         if professor is None:
@@ -69,8 +69,8 @@ def get_professor(professorid):
         cursor.close()
         conn.close()
 
-@professor_bp.route('/professor/<int:professorid>', methods=['PUT'])
-def update_professor(professorid):
+@professor_bp.route('/professor/<int:professor_id>', methods=['PUT'])
+def update_professor(professor_id):
     try:
         data = request.json
         conn = get_db_connection()
@@ -79,22 +79,22 @@ def update_professor(professorid):
         cursor.execute(
             """
             UPDATE PROFESSOR 
-            SET USERID = :userid, PROFESSORCODE = :professorcode, FIRSTNAME = :firstname, LASTNAME = :lastname, 
-                EMAIL = :email, REGISTRATIONDATE = TO_DATE(:registrationdate, 'YYYY-MM-DD'), 
-                PHOTO = :photo, UNIVERSITYID = :universityid, IDCARD = :idcard
-            WHERE PROFESSORID = :professorid
+            SET USER_ID = :user_id, PROFESSOR_CODE = :professor_code, FIRST_NAME = :first_name, LAST_NAME = :last_name, 
+                EMAIL = :email, REGISTRATION_DATE = TO_DATE(:registration_date, 'YYYY-MM-DD'), 
+                PHOTO = :photo, UNIVERSITY_ID = :university_id, ID_CARD = :id_card
+            WHERE PROFESSOR_ID = :professor_id
             """,
             {
-                'userid': data['USERID'],
-                'professorcode': data['PROFESSORCODE'],
-                'firstname': data['FIRSTNAME'],
-                'lastname': data['LASTNAME'],
+                'user_id': data['USER_ID'],
+                'professor_code': data['PROFESSOR_CODE'],
+                'first_name': data['FIRST_NAME'],
+                'last_name': data['LAST_NAME'],
                 'email': data['EMAIL'],
-                'registrationdate': datetime.strptime(data['REGISTRATIONDATE'], '%Y-%m-%d').strftime('%Y-%m-%d'),
+                'registration_date': datetime.strptime(data['REGISTRATION_DATE'], '%Y-%m-%d').strftime('%Y-%m-%d'),
                 'photo': data.get('PHOTO'),
-                'universityid': data['UNIVERSITYID'],
-                'idcard': data['IDCARD'],
-                'professorid': professorid
+                'university_id': data['UNIVERSITY_ID'],
+                'id_card': data['ID_CARD'],
+                'professor_id': professor_id
             }
         )
         conn.commit()
@@ -106,8 +106,8 @@ def update_professor(professorid):
         cursor.close()
         conn.close()
 
-@professor_bp.route('/professor/<int:professorid>', methods=['PATCH'])
-def patch_professor(professorid):
+@professor_bp.route('/professor/<int:professor_id>', methods=['PATCH'])
+def patch_professor(professor_id):
     try:
         data = request.json
 
@@ -119,31 +119,31 @@ def patch_professor(professorid):
         values = {}
 
         # Validación y asignación de campos
-        if 'USERID' in data:
-            fields.append("USERID = :userid")
-            values['userid'] = data['USERID']
+        if 'USER_ID' in data:
+            fields.append("USER_ID = :user_id")
+            values['user_id'] = data['USER_ID']
         
-        if 'PROFESSORCODE' in data:
-            fields.append("PROFESSORCODE = :professorcode")
-            values['professorcode'] = data['PROFESSORCODE']
+        if 'PROFESSOR_CODE' in data:
+            fields.append("PROFESSOR_CODE = :professor_code")
+            values['professor_code'] = data['PROFESSOR_CODE']
         
-        if 'FIRSTNAME' in data:
-            fields.append("FIRSTNAME = :firstname")
-            values['firstname'] = data['FIRSTNAME']
+        if 'FIRST_NAME' in data:
+            fields.append("FIRST_NAME = :first_name")
+            values['first_name'] = data['FIRST_NAME']
         
-        if 'LASTNAME' in data:
-            fields.append("LASTNAME = :lastname")
-            values['lastname'] = data['LASTNAME']
+        if 'LAST_NAME' in data:
+            fields.append("LAST_NAME = :last_name")
+            values['last_name'] = data['LAST_NAME']
         
         if 'EMAIL' in data:
             fields.append("EMAIL = :email")
             values['email'] = data['EMAIL']
         
-        if 'REGISTRATIONDATE' in data:
+        if 'REGISTRATION_DATE' in data:
             try:
-                registrationdate = datetime.strptime(data['REGISTRATIONDATE'], '%Y-%m-%d').strftime('%Y-%m-%d')
-                fields.append("REGISTRATIONDATE = TO_DATE(:registrationdate, 'YYYY-MM-DD')")
-                values['registrationdate'] = registrationdate
+                registration_date = datetime.strptime(data['REGISTRATION_DATE'], '%Y-%m-%d').strftime('%Y-%m-%d')
+                fields.append("REGISTRATION_DATE = TO_DATE(:registration_date, 'YYYY-MM-DD')")
+                values['registration_date'] = registration_date
             except ValueError:
                 return jsonify({"error": "Formato de fecha inválido. Se espera 'YYYY-MM-DD'."}), 400
         
@@ -151,20 +151,20 @@ def patch_professor(professorid):
             fields.append("PHOTO = :photo")
             values['photo'] = data.get('PHOTO')
         
-        if 'UNIVERSITYID' in data:
-            fields.append("UNIVERSITYID = :universityid")
-            values['universityid'] = data['UNIVERSITYID']
+        if 'UNIVERSITY_ID' in data:
+            fields.append("UNIVERSITY_ID = :university_id")
+            values['university_id'] = data['UNIVERSITY_ID']
         
-        if 'IDCARD' in data:
-            fields.append("IDCARD = :idcard")
-            values['idcard'] = data['IDCARD']
+        if 'ID_CARD' in data:
+            fields.append("ID_CARD = :id_card")
+            values['id_card'] = data['ID_CARD']
         
         if not fields:
             return jsonify({"error": "No se proporcionaron campos válidos para actualizar"}), 400
 
         # Unir los campos para formar la sentencia SQL
-        sql = f"UPDATE PROFESSOR SET {', '.join(fields)} WHERE PROFESSORID = :professorid"
-        values['professorid'] = professorid
+        sql = f"UPDATE PROFESSOR SET {', '.join(fields)} WHERE PROFESSOR_ID = :professor_id"
+        values['professor_id'] = professor_id
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -180,13 +180,13 @@ def patch_professor(professorid):
         cursor.close()
         conn.close()
 
-@professor_bp.route('/professor/<int:professorid>', methods=['DELETE'])
-def delete_professor(professorid):
+@professor_bp.route('/professor/<int:professor_id>', methods=['DELETE'])
+def delete_professor(professor_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute("DELETE FROM PROFESSOR WHERE PROFESSORID = :professorid", {'professorid': professorid})
+        cursor.execute("DELETE FROM PROFESSOR WHERE PROFESSOR_ID = :professor_id", {'professor_id': professor_id})
         conn.commit()
         return jsonify({"message": "Professor eliminado exitosamente"}), 200
     except Exception as e:

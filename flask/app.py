@@ -1,14 +1,14 @@
 from flask_cors import CORS
 from routes.appuser import appuser_bp
-from routes.attendance import attendance_bp
 from routes.class_schedule import class_schedule_bp
+from routes.class_schedule_attendance import class_schedule_attendance_bp
 from routes.create_embedding import embedding_bp
 from routes.detect import detect_bp
 from routes.face import face_bp
 from routes.professor import professor_bp
 from routes.recognize import recognize_bp
 from routes.role import role_bp
-from routes.schedule import schedule_bp
+from routes.work_schedule import work_schedule_bp
 
 from flask import Flask
 
@@ -23,8 +23,8 @@ app.register_blueprint(appuser_bp)
 app.register_blueprint(role_bp)
 app.register_blueprint(professor_bp)
 app.register_blueprint(face_bp)
-app.register_blueprint(schedule_bp)
-app.register_blueprint(attendance_bp)
+app.register_blueprint(work_schedule_bp)
+app.register_blueprint(class_schedule_attendance_bp)
 app.register_blueprint(class_schedule_bp)
 
 if __name__ == '__main__':

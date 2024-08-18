@@ -14,14 +14,14 @@ class_schedule_bp = Blueprint('class_schedule', __name__)
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Function to get PROFESSOR_ID using UNIVERSITYID
+# Function to get PROFESSOR_ID using UNIVERSITY_ID
 def get_professor_id(connection, university_id):
     cursor = connection.cursor()
     query = """
-    SELECT PROFESSORID FROM PROFESSOR
-    WHERE UNIVERSITYID = :university_id
+    SELECT PROFESSOR_ID FROM PROFESSOR
+    WHERE UNIVERSITY_ID = :university_id
     """
-    logger.debug(f"Executing query with: UNIVERSITYID={university_id}")
+    logger.debug(f"Executing query with: UNIVERSITY_ID={university_id}")
     cursor.execute(query, {"university_id": university_id.strip()})
     result = cursor.fetchone()
     cursor.close()

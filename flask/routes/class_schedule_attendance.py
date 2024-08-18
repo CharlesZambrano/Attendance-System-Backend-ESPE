@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 
 logger = logging.getLogger(__name__)
 
-attendance_bp = Blueprint('attendance', __name__)
+class_schedule_attendance_bp = Blueprint('class_schedule_attendance', __name__)
 
 def extract_time_from_datetime(datetime_obj):
     """
@@ -52,10 +52,10 @@ def validate_schedule(class_schedule, register_date, entry_time, exit_time):
 
     return True, ""
 
-@attendance_bp.route('/attendance', methods=['POST'])
+@class_schedule_attendance_bp.route('/class_schedule_attendance', methods=['POST'])
 def register_attendance():
     data = request.json
-    required_fields = ['CLASS_SCHEDULE_ID', 'PROFESSOR_ID', 'REGISTERDATE', 'TIME']
+    required_fields = ['CLASS_SCHEDULE_ID', 'PROFESSOR_ID', 'REGISTER_DATE', 'TIME']
     
     # Validar campos requeridos
     for field in required_fields:
@@ -64,7 +64,7 @@ def register_attendance():
     
     try:
         # Convertir fechas y horas
-        register_date = datetime.strptime(data['REGISTERDATE'], '%Y-%m-%d').date()
+        register_date = datetime.strptime(data['REGISTER_DATE'], '%Y-%m-%d').date()
         time = datetime.strptime(data['TIME'], '%Y-%m-%dT%H:%M:%S.%fZ')
 
         # Obtener la conexión a la base de datos
@@ -92,8 +92,8 @@ def register_attendance():
 
         # Verificar si ya existe un registro de asistencia para esa clase y día
         cur.execute("""
-            SELECT ENTRY_TIME, EXIT_TIME FROM ATTENDANCE 
-            WHERE CLASS_SCHEDULE_ID = :1 AND PROFESSORID = :2 AND REGISTERDATE = :3
+            SELECT ENTRY_TIME, EXIT_TIME FROM CLASS_SCHEDULE_ATTENDANCE 
+            WHERE CLASS_SCHEDULE_ID = :1 AND PROFESSOR_ID = :2 AND REGISTER_DATE = :3
         """, (data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date))
         existing_attendance = cur.fetchone()
 
@@ -110,16 +110,16 @@ def register_attendance():
             late_exit = "SI" if time.time() > class_end_time else "NO"
 
             cur.execute("""
-                UPDATE ATTENDANCE
-                SET EXIT_TIME = :1, TOTALHOURS = :2, LATE_EXIT = :3, REGISTER_EXIT = :4
-                WHERE CLASS_SCHEDULE_ID = :5 AND PROFESSORID = :6 AND REGISTERDATE = :7
+                UPDATE CLASS_SCHEDULE_ATTENDANCE
+                SET EXIT_TIME = :1, TOTAL_HOURS = :2, LATE_EXIT = :3, REGISTER_EXIT = :4
+                WHERE CLASS_SCHEDULE_ID = :5 AND PROFESSOR_ID = :6 AND REGISTER_DATE = :7
             """, (time, total_hours, late_exit, "SI", data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date))
             message = f"Salida registrada para la clase '{class_schedule[5]}' - NRC: {int(float(class_schedule[6]))}"
 
         else:
-            # Es la entrada, registrar nuevo con TOTALHOURS = 0
+            # Es la entrada, registrar nuevo con TOTAL_HOURS = 0
             cur.execute("""
-                INSERT INTO ATTENDANCE (CLASS_SCHEDULE_ID, PROFESSORID, REGISTERDATE, ENTRY_TIME, ATTENDANCECODE, TOTALHOURS, TYPE, REGISTER_ENTRY, REGISTER_EXIT, LATE_ENTRY)
+                INSERT INTO CLASS_SCHEDULE_ATTENDANCE (CLASS_SCHEDULE_ID, PROFESSOR_ID, REGISTER_DATE, ENTRY_TIME, ATTENDANCE_CODE, TOTAL_HOURS, TYPE, REGISTER_ENTRY, REGISTER_EXIT, LATE_ENTRY)
                 VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)
             """, (data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date, time, attendance_code, 0, 
                   class_schedule[11],  # TYPE del CLASS_SCHEDULE

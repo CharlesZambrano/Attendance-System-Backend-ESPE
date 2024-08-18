@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 
 logger = logging.getLogger(__name__)
 
-schedule_bp = Blueprint('schedule', __name__)
+work_schedule_bp = Blueprint('work_schedule', __name__)
 
 # Función para validar y formatear los timestamps en formato requerido por Oracle
 def validate_and_format_timestamp(timestamp_str):
@@ -19,29 +19,29 @@ def validate_and_format_timestamp(timestamp_str):
     except ValueError:
         raise ValueError(f"Timestamp inválido: {timestamp_str}. Debe estar en formato 'YYYY-MM-DD HH:MM:SS'.")
 
-@schedule_bp.route('/schedule', methods=['POST'])
+@work_schedule_bp.route('/work_schedule', methods=['POST'])
 def create_schedule():
     try:
         data = request.json
         
         # Validar y formatear los timestamps
-        starttime = validate_and_format_timestamp(data['STARTTIME'])
-        endtime = validate_and_format_timestamp(data['ENDTIME'])
+        start_time = validate_and_format_timestamp(data['START_TIME'])
+        end_time = validate_and_format_timestamp(data['END_TIME'])
 
         conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute(
             """
-            INSERT INTO SCHEDULE (TEACHERID, DAYOFWEEK, STARTTIME, ENDTIME, TOTALHOURS) 
-            VALUES (:teacherid, :dayofweek, TO_DATE(:starttime, 'YYYY-MM-DD HH24:MI:SS'), TO_DATE(:endtime, 'YYYY-MM-DD HH24:MI:SS'), :totalhours)
+            INSERT INTO WORK_SCHEDULE (TEACHERID, DAYS_OF_WEEK, START_TIME, END_TIME, TOTAL_HOURS) 
+            VALUES (:teacherid, :days_of_week, TO_DATE(:start_time, 'YYYY-MM-DD HH24:MI:SS'), TO_DATE(:end_time, 'YYYY-MM-DD HH24:MI:SS'), :total_hours)
             """, 
             {
                 'teacherid': data['TEACHERID'],
-                'dayofweek': data['DAYOFWEEK'],
-                'starttime': starttime,
-                'endtime': endtime,
-                'totalhours': data['TOTALHOURS']
+                'days_of_week': data['DAYS_OF_WEEK'],
+                'start_time': start_time,
+                'end_time': end_time,
+                'total_hours': data['TOTAL_HOURS']
             }
         )
         conn.commit()
@@ -56,19 +56,19 @@ def create_schedule():
         cursor.close()
         conn.close()
 
-@schedule_bp.route('/schedule/<int:scheduleid>', methods=['GET'])
+@work_schedule_bp.route('/work_schedule/<int:scheduleid>', methods=['GET'])
 def get_schedule(scheduleid):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM SCHEDULE WHERE SCHEDULEID = :scheduleid", {'scheduleid': scheduleid})
-        schedule = cursor.fetchone()
+        cursor.execute("SELECT * FROM WORK_SCHEDULE WHERE SCHEDULEID = :scheduleid", {'scheduleid': scheduleid})
+        work_schedule = cursor.fetchone()
         
-        if schedule is None:
+        if work_schedule is None:
             return jsonify({"error": "Schedule no encontrado"}), 404
         
-        return jsonify(dict(zip([key[0] for key in cursor.description], schedule))), 200
+        return jsonify(dict(zip([key[0] for key in cursor.description], work_schedule))), 200
     except Exception as e:
         logger.exception("Error obteniendo Schedule")
         return jsonify({"error": str(e)}), 500
@@ -76,29 +76,29 @@ def get_schedule(scheduleid):
         cursor.close()
         conn.close()
 
-@schedule_bp.route('/schedule/<int:scheduleid>', methods=['PUT'])
+@work_schedule_bp.route('/work_schedule/<int:scheduleid>', methods=['PUT'])
 def update_schedule(scheduleid):
     try:
         data = request.json
         
         # Validar y formatear los timestamps
-        starttime = validate_and_format_timestamp(data['STARTTIME'])
-        endtime = validate_and_format_timestamp(data['ENDTIME'])
+        start_time = validate_and_format_timestamp(data['START_TIME'])
+        end_time = validate_and_format_timestamp(data['END_TIME'])
 
         conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute(
             """
-            UPDATE SCHEDULE 
-            SET DAYOFWEEK = :dayofweek, STARTTIME = TO_DATE(:starttime, 'YYYY-MM-DD HH24:MI:SS'), ENDTIME = TO_DATE(:endtime, 'YYYY-MM-DD HH24:MI:SS'), TOTALHOURS = :totalhours
+            UPDATE WORK_SCHEDULE 
+            SET DAYS_OF_WEEK = :days_of_week, START_TIME = TO_DATE(:start_time, 'YYYY-MM-DD HH24:MI:SS'), END_TIME = TO_DATE(:end_time, 'YYYY-MM-DD HH24:MI:SS'), TOTAL_HOURS = :total_hours
             WHERE SCHEDULEID = :scheduleid
             """,
             {
-                'dayofweek': data['DAYOFWEEK'],
-                'starttime': starttime,
-                'endtime': endtime,
-                'totalhours': data['TOTALHOURS'],
+                'days_of_week': data['DAYS_OF_WEEK'],
+                'start_time': start_time,
+                'end_time': end_time,
+                'total_hours': data['TOTAL_HOURS'],
                 'scheduleid': scheduleid
             }
         )
@@ -114,13 +114,13 @@ def update_schedule(scheduleid):
         cursor.close()
         conn.close()
 
-@schedule_bp.route('/schedule/<int:scheduleid>', methods=['DELETE'])
+@work_schedule_bp.route('/work_schedule/<int:scheduleid>', methods=['DELETE'])
 def delete_schedule(scheduleid):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("DELETE FROM SCHEDULE WHERE SCHEDULEID = :scheduleid", {'scheduleid': scheduleid})
+        cursor.execute("DELETE FROM WORK_SCHEDULE WHERE SCHEDULEID = :scheduleid", {'scheduleid': scheduleid})
         conn.commit()
         return jsonify({"message": "Schedule eliminado exitosamente"}), 200
     except Exception as e:
