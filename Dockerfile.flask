@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copiar el archivo de Oracle Instant Client desde el directorio local
-COPY instantclient-basic-linux.x64-21.3.0.0.0.zip /opt/oracle/
+COPY assets/instantclient-basic-linux.x64-21.3.0.0.0.zip /opt/oracle/
 
 # Descomprimir Oracle Instant Client en /opt/oracle
 RUN unzip /opt/oracle/instantclient-basic-linux.x64-21.3.0.0.0.zip -d /opt/oracle && \
@@ -27,7 +27,7 @@ ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_21_3:$LD_LIBRARY_PATH
 ENV TNS_ADMIN=/opt/oracle/instantclient_21_3
 
 # Copiar el archivo de requisitos e instalar dependencias
-COPY requirements.txt requirements.txt
+COPY assets/requirements.txt requirements.txt
 
 # Instalar dependencias desde requirements.txt, incluyendo cx_Oracle
 RUN pip install --no-cache-dir -r requirements.txt dill --upgrade pip
