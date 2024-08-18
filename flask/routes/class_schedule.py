@@ -1,4 +1,3 @@
-# Import necessary modules
 import logging
 
 import cx_Oracle
@@ -37,15 +36,11 @@ def find_header_row(df):
 
 # Function to map and format days of the week
 def format_days_of_week(row):
-    # Map of days in Excel to their full English names
     days_map = {'L': 'Monday', 'M': 'Tuesday', 'I': 'Wednesday', 'J': 'Thursday', 'V': 'Friday', 'S': 'Saturday', 'D': 'Sunday'}
     days_of_week = []
-    
-    # Iterate over each day in the map and check if it's marked in the row
     for day, full_name in days_map.items():
         if pd.notnull(row[day]) and row[day].strip().upper() in ['M', 'T', 'W', 'R', 'F', 'S', 'U']:
             days_of_week.append(full_name)
-    
     return ', '.join(days_of_week)
 
 # Function to safely convert time values to the correct format
@@ -110,7 +105,6 @@ def upload_class_schedule():
                     logger.warning(f"Professor ID not found for row {index}. Skipping row.")
                     continue
 
-                # Handle NaN values and validate data before insertion
                 knowledge_area = row[expected_columns['ÁREA DE CONOCIMIENTO']] if not pd.isnull(row[expected_columns['ÁREA DE CONOCIMIENTO']]) else 'UNKNOWN'
                 education_level = row[expected_columns['NIVEL FORMACION']] if not pd.isnull(row[expected_columns['NIVEL FORMACION']]) else 'UNKNOWN'
                 
@@ -125,11 +119,9 @@ def upload_class_schedule():
                     logger.error(f"Invalid numeric value in row {index}. Skipping row.")
                     continue
 
-                # Convert and format the time values
                 start_time_str = convert_time(row[expected_columns['HI']])
                 end_time_str = convert_time(row[expected_columns['HF']])
                 
-                # Format the start_time and end_time with a dummy date
                 start_time = f"2024-08-17 {start_time_str}" if start_time_str else None
                 end_time = f"2024-08-17 {end_time_str}" if end_time_str else None
                 
@@ -159,9 +151,9 @@ def upload_class_schedule():
                         "education_level": education_level,
                         "code": row[expected_columns['CODIGO']],
                         "subject": row[expected_columns['ASIGNATURA']],
-                        "nrc": str(row[expected_columns['NRC']]),  # Ensure NRC is a string
+                        "nrc": str(row[expected_columns['NRC']]),  
                         "status": row[expected_columns['STATUS']],
-                        "section": str(row[expected_columns['SECCION']]),  # Ensure SECTION is a string
+                        "section": str(row[expected_columns['SECCION']]),  
                         "credits": credits,
                         "type": row[expected_columns['TIPO']],
                         "building": building,
@@ -174,7 +166,7 @@ def upload_class_schedule():
                     connection.commit()
                 except cx_Oracle.IntegrityError as e:
                     error_code = e.args[0].code
-                    if error_code == 1:  # ORA-00001: unique constraint violated
+                    if error_code == 1:  
                         error_message = f"Duplicate schedule detected for row {index}. The following data caused the conflict: {row.to_dict()}"
                         logger.error(error_message)
                         return jsonify({"error": error_message}), 400
@@ -199,3 +191,100 @@ def upload_class_schedule():
     else:
         logger.error("Invalid file type, only .xlsx is allowed.")
         return jsonify({"error": "Archivo de tipo invalido, solo .xlsx es permitido"}), 400
+
+
+@class_schedule_bp.route('/create_class_schedule', methods=['POST'])
+def create_class_schedule():
+    logger.debug("Received request to create class schedule.")
+    
+    data = request.json
+    if not data:
+        logger.error("No JSON data provided in the request.")
+        return jsonify({"error": "No JSON data provided in the request"}), 400
+    
+    expected_keys = [
+        'PROFESSOR_ID', 'KNOWLEDGE_AREA', 'EDUCATION_LEVEL', 'CODE', 'SUBJECT', 'NRC', 
+        'STATUS', 'SECTION', 'CREDITS', 'TYPE', 'BUILDING', 'CLASSROOM', 'CAPACITY', 
+        'START_TIME', 'END_TIME', 'DAYS_OF_WEEK'
+    ]
+    
+    for key in expected_keys:
+        if key not in data:
+            logger.error(f"Missing key '{key}' in JSON data.")
+            return jsonify({"error": f"Missing key '{key}' in JSON data."}), 400
+    
+    connection = None
+    try:
+        connection = get_db_connection()
+        
+        # Prepare data for insertion
+        professor_id = data['PROFESSOR_ID']
+        knowledge_area = data.get('KNOWLEDGE_AREA', 'UNKNOWN')
+        education_level = data.get('EDUCATION_LEVEL', 'UNKNOWN')
+        credits = float(data['CREDITS']) if data['CREDITS'] else 0
+        capacity = int(data['CAPACITY']) if data['CAPACITY'] else None
+        
+        # Convert and format the start_time and end_time
+        start_time = pd.to_datetime(data['START_TIME']).strftime('%Y-%m-%d %H:%M:%S')
+        end_time = pd.to_datetime(data['END_TIME']).strftime('%Y-%m-%d %H:%M:%S')
+        
+        days_of_week = data['DAYS_OF_WEEK']
+        
+        # Insert data into the database
+        cursor = connection.cursor()
+        try:
+            insert_query = """
+            INSERT INTO CLASS_SCHEDULE (
+                PROFESSOR_ID, KNOWLEDGE_AREA, EDUCATION_LEVEL, CODE, SUBJECT, NRC,
+                STATUS, SECTION, CREDITS, TYPE, BUILDING, CLASSROOM, CAPACITY,
+                START_TIME, END_TIME, DAYS_OF_WEEK
+            ) VALUES (
+                :professor_id, :knowledge_area, :education_level, :code, :subject, :nrc,
+                :status, :section, :credits, :type, :building, :classroom, :capacity,
+                TO_DATE(:start_time, 'YYYY-MM-DD HH24:MI:SS'), TO_DATE(:end_time, 'YYYY-MM-DD HH24:MI:SS'), :days_of_week
+            )
+            """
+            cursor.execute(insert_query, {
+                "professor_id": professor_id,
+                "knowledge_area": knowledge_area,
+                "education_level": education_level,
+                "code": data['CODE'],
+                "subject": data['SUBJECT'],
+                "nrc": str(data['NRC']),
+                "status": data['STATUS'],
+                "section": str(data['SECTION']),
+                "credits": credits,
+                "type": data['TYPE'],
+                "building": data['BUILDING'],
+                "classroom": data['CLASSROOM'],
+                "capacity": capacity,
+                "start_time": start_time,
+                "end_time": end_time,
+                "days_of_week": days_of_week
+            })
+            connection.commit()
+            logger.info("Class schedule created successfully.")
+            return jsonify({"message": "Class schedule created successfully"}), 201
+        
+        except cx_Oracle.IntegrityError as e:
+            error_code = e.args[0].code
+            if error_code == 1:  
+                error_message = "Duplicate schedule detected. The following data caused the conflict: {}".format(data)
+                logger.error(error_message)
+                return jsonify({"error": error_message}), 400
+            else:
+                logger.error(f"Error inserting schedule: {e}")
+                raise
+        
+        finally:
+            cursor.close()
+    
+    except Exception as e:
+        logger.exception("Error processing request.")
+        if connection:
+            connection.rollback()
+        return jsonify({"error": str(e)}), 500
+    
+    finally:
+        if connection:
+            connection.close()
