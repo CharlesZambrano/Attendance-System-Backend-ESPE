@@ -114,7 +114,7 @@ def register_attendance():
                 SET EXIT_TIME = :1, TOTALHOURS = :2, LATE_EXIT = :3, REGISTER_EXIT = :4
                 WHERE CLASS_SCHEDULE_ID = :5 AND PROFESSORID = :6 AND REGISTERDATE = :7
             """, (time, total_hours, late_exit, "SI", data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date))
-            message = f"Salida registrada para la clase '{class_schedule[5]}' (NRC: {int(float(class_schedule[6]))})"
+            message = f"Salida registrada para la clase '{class_schedule[5]}' - NRC: {int(float(class_schedule[6]))}"
 
         else:
             # Es la entrada, registrar nuevo con TOTALHOURS = 0
@@ -124,7 +124,7 @@ def register_attendance():
             """, (data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date, time, attendance_code, 0, 
                   class_schedule[11],  # TYPE del CLASS_SCHEDULE
                   "SI", "NO", late_entry))
-            message = f"Entrada registrada para la clase '{class_schedule[5]}' (NRC: {int(float(class_schedule[6]))})"
+            message = f"Entrada registrada para la clase '{class_schedule[5]}' - NRC: {int(float(class_schedule[6]))}"
 
         conn.commit()
         return jsonify({'message': message}), 201
