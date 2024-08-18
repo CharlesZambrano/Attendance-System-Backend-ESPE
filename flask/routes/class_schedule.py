@@ -1,8 +1,10 @@
 import logging
+from datetime import datetime
 
 import cx_Oracle
 import numpy as np
 import pandas as pd
+import pytz
 from db_connection import get_db_connection
 
 from flask import Blueprint, jsonify, request
@@ -288,3 +290,46 @@ def create_class_schedule():
     finally:
         if connection:
             connection.close()
+
+@class_schedule_bp.route('/class-schedules/<int:professor_id>', methods=['GET'])
+def get_class_schedules(professor_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Obtener la zona horaria de Ecuador
+        ecuador_tz = pytz.timezone('America/Guayaquil')
+        # Obtener la fecha y hora actual en la zona horaria de Ecuador
+        now_ecuador = datetime.now(ecuador_tz)
+        # Obtener el día de la semana actual en Ecuador
+        today = now_ecuador.strftime('%A')  # Esto devuelve el nombre del día de la semana en inglés
+
+        # Consulta SQL para obtener los horarios de clase del profesor para el día actual
+        query = """
+        SELECT *
+        FROM CLASS_SCHEDULE
+        WHERE PROFESSOR_ID = :professor_id
+        AND INSTR(DAYS_OF_WEEK, :today) > 0
+        """
+
+        cursor.execute(query, {'professor_id': professor_id, 'today': today})
+        class_schedules = cursor.fetchall()
+
+        if not class_schedules:
+            return jsonify({"message": "No se encontraron horarios de clase para el profesor en el día actual."}), 404
+
+        # Obtener los nombres de las columnas para estructurar la respuesta
+        column_names = [desc[0] for desc in cursor.description]
+
+        # Construir la respuesta como una lista de diccionarios
+        result = [dict(zip(column_names, schedule)) for schedule in class_schedules]
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        logger.exception("Error obteniendo los horarios de clase.")
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cursor.close()
+        conn.close()
