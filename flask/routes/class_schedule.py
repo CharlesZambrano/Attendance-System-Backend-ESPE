@@ -172,10 +172,16 @@ def upload_class_schedule():
                         "days_of_week": days_of_week
                     })
                     connection.commit()
-                except cx_Oracle.DatabaseError as e:
-                    logger.error(f"Error inserting row {index}: {e}")
-                    logger.debug(f"Failed data: {row.to_dict()}")
-                    raise
+                except cx_Oracle.IntegrityError as e:
+                    error_code = e.args[0].code
+                    if error_code == 1:  # ORA-00001: unique constraint violated
+                        error_message = f"Duplicate schedule detected for row {index}. The following data caused the conflict: {row.to_dict()}"
+                        logger.error(error_message)
+                        return jsonify({"error": error_message}), 400
+                    else:
+                        logger.error(f"Error inserting row {index}: {e}")
+                        logger.debug(f"Failed data: {row.to_dict()}")
+                        raise
 
                 finally:
                     cursor.close()
