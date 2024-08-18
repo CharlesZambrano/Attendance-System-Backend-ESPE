@@ -29,7 +29,7 @@ def generate_attendance_code(class_schedule_id, professor_id, register_date):
 def validate_schedule(class_schedule, register_date, entry_time, exit_time):
     """
     Valida que la hora de entrada y salida estén dentro del rango permitido.
-    Se permite registrar la entrada hasta 5 minutos antes del inicio y la salida hasta 5 minutos después del final.
+    Se permite registrar la entrada hasta 10 minutos antes del inicio y la salida hasta 5 minutos después del final.
     """
     # Verifica que la fecha de asistencia coincida con los DAYS_OF_WEEK del CLASS_SCHEDULE
     day_of_week = register_date.strftime('%A')
@@ -43,8 +43,8 @@ def validate_schedule(class_schedule, register_date, entry_time, exit_time):
     class_end_time = extract_time_from_datetime(class_schedule[15])  # END_TIME es el 16º campo
 
     # Ajustar los tiempos permitidos (5 minutos antes o después)
-    allowed_start_time = (datetime.combine(register_date, class_start_time) - timedelta(minutes=5)).time()
-    allowed_end_time = (datetime.combine(register_date, class_end_time) + timedelta(minutes=5)).time()
+    allowed_start_time = (datetime.combine(register_date, class_start_time) - timedelta(minutes=10)).time()
+    allowed_end_time = (datetime.combine(register_date, class_end_time) + timedelta(minutes=10)).time()
 
     # Verifica que las horas registradas estén dentro del horario permitido
     if not (allowed_start_time <= entry_time.time() <= allowed_end_time) or not (allowed_start_time <= exit_time.time() <= allowed_end_time):
