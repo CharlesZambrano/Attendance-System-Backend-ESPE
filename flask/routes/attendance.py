@@ -1,33 +1,53 @@
 import logging
 from datetime import datetime, timedelta
 
-import pytz
 from db_connection import get_db_connection
 
-from flask import Blueprint, Flask, jsonify, request
+from flask import Blueprint, jsonify, request
 
 logger = logging.getLogger(__name__)
 
 attendance_bp = Blueprint('attendance', __name__)
 
-def extract_time_from_datetime(datetime_str):
+def extract_time_from_datetime(datetime_obj):
     """
-    Extrae solo la parte de la hora de una cadena de fecha y hora en formato ISO 8601.
+    Extrae solo la parte de la hora de un objeto datetime.
+    Si el argumento ya es un objeto datetime.time, simplemente lo retorna.
     """
-    return datetime.fromisoformat(datetime_str).time()
+    if isinstance(datetime_obj, str):
+        return datetime.fromisoformat(datetime_obj).time()
+    elif isinstance(datetime_obj, datetime):
+        return datetime_obj.time()
+    return datetime_obj  # En caso de que ya sea un objeto datetime.time
+
+def generate_attendance_code(class_schedule_id, professor_id, register_date):
+    """
+    Genera un código único para el registro de asistencia.
+    """
+    return f"{class_schedule_id}-{professor_id}-{register_date.strftime('%Y%m%d')}"
 
 def validate_schedule(class_schedule, register_date, entry_time, exit_time):
+    """
+    Valida que la hora de entrada y salida estén dentro del rango permitido.
+    Se permite registrar la entrada hasta 5 minutos antes del inicio y la salida hasta 5 minutos después del final.
+    """
     # Verifica que la fecha de asistencia coincida con los DAYS_OF_WEEK del CLASS_SCHEDULE
     day_of_week = register_date.strftime('%A')
-    if day_of_week not in class_schedule['DAYS_OF_WEEK'].split(', '):
+    allowed_days = class_schedule[16].split(', ')  # DAYS_OF_WEEK es el 17º campo en tu esquema
+    
+    if day_of_week not in allowed_days:
         return False, f"El día {day_of_week} no coincide con los días de la semana permitidos para esta clase."
 
     # Extraer horas de START_TIME y END_TIME
-    class_start_time = extract_time_from_datetime(class_schedule['START_TIME'])
-    class_end_time = extract_time_from_datetime(class_schedule['END_TIME'])
-    
-    # Verifica que las horas registradas estén dentro del horario de la clase
-    if not (class_start_time <= entry_time.time() <= class_end_time) or not (class_start_time <= exit_time.time() <= class_end_time):
+    class_start_time = extract_time_from_datetime(class_schedule[14])  # START_TIME es el 15º campo
+    class_end_time = extract_time_from_datetime(class_schedule[15])  # END_TIME es el 16º campo
+
+    # Ajustar los tiempos permitidos (5 minutos antes o después)
+    allowed_start_time = (datetime.combine(register_date, class_start_time) - timedelta(minutes=5)).time()
+    allowed_end_time = (datetime.combine(register_date, class_end_time) + timedelta(minutes=5)).time()
+
+    # Verifica que las horas registradas estén dentro del horario permitido
+    if not (allowed_start_time <= entry_time.time() <= allowed_end_time) or not (allowed_start_time <= exit_time.time() <= allowed_end_time):
         return False, "La hora de entrada o salida está fuera del horario permitido para esta clase."
 
     return True, ""
@@ -63,36 +83,51 @@ def register_attendance():
         if not valid:
             return jsonify({'error': message}), 400
 
+        # Determinar si es una entrada tarde
+        class_start_time = extract_time_from_datetime(class_schedule[14])
+        late_entry = "SI" if time.time() > class_start_time else "NO"
+
+        # Generar un código único para el registro de asistencia
+        attendance_code = generate_attendance_code(data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date)
+
         # Verificar si ya existe un registro de asistencia para esa clase y día
         cur.execute("""
-            SELECT * FROM ATTENDANCE 
-            WHERE CLASS_SCHEDULE_ID = :1 AND PROFESSOR_ID = :2 AND REGISTERDATE = :3
+            SELECT ENTRY_TIME, EXIT_TIME FROM ATTENDANCE 
+            WHERE CLASS_SCHEDULE_ID = :1 AND PROFESSORID = :2 AND REGISTERDATE = :3
         """, (data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date))
         existing_attendance = cur.fetchone()
 
         if existing_attendance:
-            if existing_attendance['EXIT_TIME']:
+            if existing_attendance[1]:  # EXIT_TIME ya registrado
                 return jsonify({'error': "Ya existe un registro completo de asistencia para esta clase y día"}), 409
             
             # Es la salida, actualizar registro existente
-            entry_time = existing_attendance['ENTRY_TIME']
+            entry_time = existing_attendance[0]  # ENTRY_TIME es el primer campo
             total_hours = (time - entry_time).total_seconds() / 3600
+
+            # Determinar si es una salida tarde
+            class_end_time = extract_time_from_datetime(class_schedule[15])
+            late_exit = "SI" if time.time() > class_end_time else "NO"
 
             cur.execute("""
                 UPDATE ATTENDANCE
-                SET EXIT_TIME = :1, TOTALHOURS = :2, LATE = :3
-                WHERE CLASS_SCHEDULE_ID = :4 AND PROFESSOR_ID = :5 AND REGISTERDATE = :6
-            """, (time, total_hours, entry_time.time() > extract_time_from_datetime(class_schedule['START_TIME']),
-                  data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date))
+                SET EXIT_TIME = :1, TOTALHOURS = :2, LATE_EXIT = :3, REGISTER_EXIT = :4
+                WHERE CLASS_SCHEDULE_ID = :5 AND PROFESSORID = :6 AND REGISTERDATE = :7
+            """, (time, total_hours, late_exit, "SI", data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date))
+            message = f"Salida registrada para la clase '{class_schedule[5]}' (NRC: {int(float(class_schedule[6]))})"
+
         else:
-            # Es la entrada, registrar nuevo
+            # Es la entrada, registrar nuevo con TOTALHOURS = 0
             cur.execute("""
-                INSERT INTO ATTENDANCE (CLASS_SCHEDULE_ID, PROFESSOR_ID, REGISTERDATE, ENTRY_TIME)
-                VALUES (:1, :2, :3, :4)
-            """, (data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date, time))
+                INSERT INTO ATTENDANCE (CLASS_SCHEDULE_ID, PROFESSORID, REGISTERDATE, ENTRY_TIME, ATTENDANCECODE, TOTALHOURS, TYPE, REGISTER_ENTRY, REGISTER_EXIT, LATE_ENTRY)
+                VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)
+            """, (data['CLASS_SCHEDULE_ID'], data['PROFESSOR_ID'], register_date, time, attendance_code, 0, 
+                  class_schedule[11],  # TYPE del CLASS_SCHEDULE
+                  "SI", "NO", late_entry))
+            message = f"Entrada registrada para la clase '{class_schedule[5]}' (NRC: {int(float(class_schedule[6]))})"
 
         conn.commit()
-        return jsonify({'message': "Asistencia registrada exitosamente"}), 201
+        return jsonify({'message': message}), 201
 
     except Exception as e:
         logger.error(f"Error al registrar asistencia: {e}")
