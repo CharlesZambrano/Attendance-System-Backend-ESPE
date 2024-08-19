@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 detect_bp = Blueprint('detect', __name__)
 
 # Ruta del modelo YOLOv8
-YOLO_MODEL_PATH = '/app/yolov8x-face-lindevs.pt'
+YOLO_MODEL_PATH = '/app/yolov8l-face-lindevs.pt'
 MIN_CONFIDENCE = 0.8
 
 # Verificar si el modelo existe
