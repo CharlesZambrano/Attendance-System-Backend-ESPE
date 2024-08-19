@@ -79,12 +79,9 @@ def recognize_faces():
                 logger.info("No se detectó vida en el rostro.")
                 return jsonify({"identities": ["No se detectó un rostro real."]})
 
-            # Preprocesamiento opcional: redimensionar el rostro para estandarizar (por ejemplo, a 224x224)
-            face_img_resized = cv2.resize(face_img, (224, 224))
-
             # Realizar el reconocimiento facial usando "Facenet512"
             try:
-                results = DeepFace.find(face_img_resized, db_path=DEEPFACE_DB_PATH, model_name="Facenet512", enforce_detection=False)
+                results = DeepFace.find(face_img, db_path=DEEPFACE_DB_PATH, model_name="Facenet512", enforce_detection=False)
                 if results and isinstance(results, list):
                     for df in results:
                         if not df.empty:

@@ -207,7 +207,7 @@ def get_professor_by_id_card(id_card):
         professor = cursor.fetchone()
 
         if professor is None:
-            return jsonify({"error": "Professor no encontrado"}), 404
+            return jsonify({"error": "Docente no reconocido"}), 404
 
         return jsonify(dict(zip([key[0] for key in cursor.description], professor))), 200
     except Exception as e:
