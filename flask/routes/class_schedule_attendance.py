@@ -136,3 +136,51 @@ def register_attendance():
     finally:
         cur.close()
         conn.close()
+
+@class_schedule_attendance_bp.route('/class_schedule_attendance/<int:class_schedule_id>', methods=['GET'])
+def get_class_schedule_attendance_by_schedule_id(class_schedule_id):
+    try:
+        # Obtener la conexión a la base de datos
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Ejecutar la consulta para obtener el registro de asistencia por CLASS_SCHEDULE_ID
+        cur.execute("""
+            SELECT CLASS_SCHEDULE_ATTENDANCE_ID, PROFESSOR_ID, ATTENDANCE_CODE, REGISTER_DATE, ENTRY_TIME, 
+                   EXIT_TIME, TOTAL_HOURS, LATE_ENTRY, TYPE, REGISTER_ENTRY, REGISTER_EXIT, LATE_EXIT 
+            FROM CLASS_SCHEDULE_ATTENDANCE
+            WHERE CLASS_SCHEDULE_ID = :1
+        """, (class_schedule_id,))
+        
+        attendance_records = cur.fetchall()
+
+        if not attendance_records:
+            return jsonify({'error': "No se encontraron registros de asistencia para el CLASS_SCHEDULE_ID proporcionado"}), 404
+
+        # Estructurar los resultados en formato JSON
+        attendance_list = []
+        for record in attendance_records:
+            attendance_list.append({
+                'CLASS_SCHEDULE_ATTENDANCE_ID': record[0],
+                'PROFESSOR_ID': record[1],
+                'ATTENDANCE_CODE': record[2],
+                'REGISTER_DATE': record[3].strftime('%Y-%m-%d'),
+                'ENTRY_TIME': record[4].strftime('%H:%M:%S') if record[4] else None,
+                'EXIT_TIME': record[5].strftime('%H:%M:%S') if record[5] else None,
+                'TOTAL_HOURS': record[6],
+                'LATE_ENTRY': record[7],
+                'TYPE': record[8],
+                'REGISTER_ENTRY': record[9],
+                'REGISTER_EXIT': record[10],
+                'LATE_EXIT': record[11]
+            })
+
+        return jsonify(attendance_list), 200
+
+    except Exception as e:
+        logger.error(f"Error al obtener asistencia: {e}")
+        return jsonify({'error': "Ocurrió un error al obtener la asistencia"}), 500
+
+    finally:
+        cur.close()
+        conn.close()
