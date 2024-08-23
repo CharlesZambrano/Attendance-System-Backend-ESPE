@@ -13,69 +13,6 @@ professor_bp = Blueprint('professor', __name__)
 
 @professor_bp.route('/professors', methods=['GET'])
 def get_professors():
-    """
-    Obtener lista de Profesores con Paginación
-    ---
-    summary: Obtener una lista de profesores con paginación
-    description: Endpoint para obtener una lista de profesores de forma paginada.
-    parameters:
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: Número de la página, por defecto es 1
-      - name: per_page
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: Número de elementos por página, por defecto es 10
-    responses:
-      200:
-        description: Lista de profesores obtenida exitosamente
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                items:
-                  type: array
-                  items: 
-                    type: object
-                    properties:
-                      PROFESSOR_ID:
-                        type: integer
-                      USER_ID:
-                        type: integer
-                      PROFESSOR_CODE:
-                        type: string
-                      FIRST_NAME:
-                        type: string
-                      LAST_NAME:
-                        type: string
-                      EMAIL:
-                        type: string
-                      REGISTRATION_DATE:
-                        type: string
-                        format: date
-                      PHOTO:
-                        type: string
-                      UNIVERSITY_ID:
-                        type: string
-                      ID_CARD:
-                        type: string
-                total:
-                  type: integer
-                page:
-                  type: integer
-                pages:
-                  type: integer
-                per_page:
-                  type: integer
-      500:
-        description: Error interno del servidor
-    """
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 10, type=int)
@@ -83,24 +20,38 @@ def get_professors():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT * FROM (
+        # Ajuste de la consulta para ordenar por LAST_NAME ascendente
+        query = """
+            SELECT PROFESSOR_ID, USER_ID, PROFESSOR_CODE, FIRST_NAME, LAST_NAME, EMAIL, 
+                   TO_CHAR(REGISTRATION_DATE, 'YYYY-MM-DD') AS REGISTRATION_DATE, 
+                   PHOTO, UNIVERSITY_ID, ID_CARD 
+            FROM (
                 SELECT a.*, ROWNUM rnum FROM (
-                    SELECT * FROM PROFESSOR ORDER BY PROFESSOR_ID
+                    SELECT PROFESSOR_ID, USER_ID, PROFESSOR_CODE, FIRST_NAME, LAST_NAME, EMAIL, 
+                           REGISTRATION_DATE, PHOTO, UNIVERSITY_ID, ID_CARD 
+                    FROM PROFESSOR 
+                    ORDER BY LAST_NAME ASC
                 ) a WHERE ROWNUM <= :max_row
             ) WHERE rnum >= :min_row
-        """, {
+        """
+
+        cursor.execute(query, {
             'min_row': (page - 1) * per_page + 1,
             'max_row': page * per_page
         })
 
         professors = cursor.fetchall()
+        if not professors:
+            return jsonify({"message": "No se encontraron profesores"}), 404
 
-        cursor.execute("SELECT COUNT(*) FROM PROFESSOR")
-        total = cursor.fetchone()[0]
+        # Consulta para obtener el número total de registros
+        cursor_total = conn.cursor()  # Usar un nuevo cursor para la consulta de total
+        cursor_total.execute("SELECT COUNT(*) FROM PROFESSOR")
+        total = cursor_total.fetchone()[0]
+        cursor_total.close()
 
         result = {
-            'items': [dict(zip([key[0] for key in cursor.description], row)) for row in professors],
+            'items': [dict(zip([col[0] for col in cursor.description], row)) for row in professors],
             'total': total,
             'page': page,
             'pages': (total // per_page) + (1 if total % per_page > 0 else 0),
@@ -109,7 +60,6 @@ def get_professors():
 
         return jsonify(result), 200
     except Exception as e:
-        logger.exception("Error obteniendo la lista de Profesores")
         return jsonify({"error": str(e)}), 500
     finally:
         cursor.close()
