@@ -15,7 +15,7 @@ professor_bp = Blueprint('professor', __name__)
 def get_professors():
     try:
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 10, type=int)
+        per_page = request.args.get('per_page', 100, type=int)
 
         conn = get_db_connection()
         cursor = conn.cursor()
