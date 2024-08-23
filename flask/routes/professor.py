@@ -11,63 +11,105 @@ logger = logging.getLogger(__name__)
 professor_bp = Blueprint('professor', __name__)
 
 
-@professor_bp.route('/professor', methods=['POST'])
-def create_professor():
+@professor_bp.route('/professors', methods=['GET'])
+def get_professors():
     """
-    Crear un nuevo Profesor
+    Obtener lista de Profesores con Paginación
     ---
-    summary: Crea un nuevo profesor
-    description: Endpoint para crear un nuevo profesor en la base de datos.
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema: ProfessorSchema
+    summary: Obtener una lista de profesores con paginación
+    description: Endpoint para obtener una lista de profesores de forma paginada.
+    parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Número de la página, por defecto es 1
+      - name: per_page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Número de elementos por página, por defecto es 10
     responses:
-      201:
-        description: Profesor creado exitosamente
+      200:
+        description: Lista de profesores obtenida exitosamente
         content:
           application/json:
-            schema: ProfessorResponseSchema
-      400:
-        description: Error en los datos proporcionados
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: 
+                    type: object
+                    properties:
+                      PROFESSOR_ID:
+                        type: integer
+                      USER_ID:
+                        type: integer
+                      PROFESSOR_CODE:
+                        type: string
+                      FIRST_NAME:
+                        type: string
+                      LAST_NAME:
+                        type: string
+                      EMAIL:
+                        type: string
+                      REGISTRATION_DATE:
+                        type: string
+                        format: date
+                      PHOTO:
+                        type: string
+                      UNIVERSITY_ID:
+                        type: string
+                      ID_CARD:
+                        type: string
+                total:
+                  type: integer
+                page:
+                  type: integer
+                pages:
+                  type: integer
+                per_page:
+                  type: integer
       500:
         description: Error interno del servidor
     """
     try:
-        data = request.json
-
-        # Validación del formato de la fecha
-        try:
-            registration_date = datetime.strptime(
-                data['REGISTRATION_DATE'], '%Y-%m-%d').strftime('%Y-%m-%d')
-        except ValueError:
-            return jsonify({"error": "Formato de fecha inválido. Se espera 'YYYY-MM-DD'."}), 400
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute(
-            """
-            INSERT INTO PROFESSOR (USER_ID, PROFESSOR_CODE, FIRST_NAME, LAST_NAME, EMAIL, REGISTRATION_DATE, PHOTO, UNIVERSITY_ID, ID_CARD) 
-            VALUES (:user_id, :professor_code, :first_name, :last_name, :email, TO_DATE(:registration_date, 'YYYY-MM-DD'), :photo, :university_id, :id_card)
-            """,
-            {
-                'user_id': data['USER_ID'],
-                'professor_code': data['PROFESSOR_CODE'],
-                'first_name': data['FIRST_NAME'],
-                'last_name': data['LAST_NAME'],
-                'email': data['EMAIL'],
-                'registration_date': registration_date,
-                'photo': data.get('PHOTO'),  # Es opcional
-                'university_id': data['UNIVERSITY_ID'],
-                'id_card': data['ID_CARD']
-            }
-        )
-        conn.commit()
-        return jsonify({"message": "Professor creado exitosamente"}), 201
+        cursor.execute("""
+            SELECT * FROM (
+                SELECT a.*, ROWNUM rnum FROM (
+                    SELECT * FROM PROFESSOR ORDER BY PROFESSOR_ID
+                ) a WHERE ROWNUM <= :max_row
+            ) WHERE rnum >= :min_row
+        """, {
+            'min_row': (page - 1) * per_page + 1,
+            'max_row': page * per_page
+        })
+
+        professors = cursor.fetchall()
+
+        cursor.execute("SELECT COUNT(*) FROM PROFESSOR")
+        total = cursor.fetchone()[0]
+
+        result = {
+            'items': [dict(zip([key[0] for key in cursor.description], row)) for row in professors],
+            'total': total,
+            'page': page,
+            'pages': (total // per_page) + (1 if total % per_page > 0 else 0),
+            'per_page': per_page
+        }
+
+        return jsonify(result), 200
     except Exception as e:
-        logger.exception("Error creando Professor")
+        logger.exception("Error obteniendo la lista de Profesores")
         return jsonify({"error": str(e)}), 500
     finally:
         cursor.close()
@@ -229,7 +271,7 @@ def patch_professor(professor_id):
                 type: string
                 description: Foto del profesor (opcional)
               UNIVERSITY_ID:
-                type: integer
+                type: string
                 description: ID de la universidad asociada
               ID_CARD:
                 type: string
@@ -394,6 +436,143 @@ def get_professor_by_id_card(id_card):
         return jsonify(dict(zip([key[0] for key in cursor.description], professor))), 200
     except Exception as e:
         logger.exception("Error obteniendo Professor por ID_CARD")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# Nuevos endpoints para obtener profesores por UNIVERSITY_ID, EMAIL y PROFESSOR_CODE
+
+@professor_bp.route('/professor/university/<string:university_id>', methods=['GET'])
+def get_professor_by_university_id(university_id):
+    """
+    Obtener un Profesor por UNIVERSITY_ID
+    ---
+    summary: Obtener un profesor por UNIVERSITY_ID
+    description: Endpoint para obtener los detalles de un profesor por su UNIVERSITY_ID.
+    parameters:
+      - name: university_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID de la universidad asociada al profesor
+    responses:
+      200:
+        description: Datos del profesor obtenidos exitosamente
+        content:
+          application/json:
+            schema: ProfessorResponseSchema
+      404:
+        description: Profesor no encontrado
+      500:
+        description: Error interno del servidor
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT * FROM PROFESSOR WHERE UNIVERSITY_ID = :university_id", {'university_id': university_id})
+        professor = cursor.fetchone()
+
+        if professor is None:
+            return jsonify({"error": "Profesor no encontrado"}), 404
+
+        return jsonify(dict(zip([key[0] for key in cursor.description], professor))), 200
+    except Exception as e:
+        logger.exception("Error obteniendo Professor por UNIVERSITY_ID")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@professor_bp.route('/professor/email/<string:email>', methods=['GET'])
+def get_professor_by_email(email):
+    """
+    Obtener un Profesor por EMAIL
+    ---
+    summary: Obtener un profesor por EMAIL
+    description: Endpoint para obtener los detalles de un profesor por su EMAIL.
+    parameters:
+      - name: email
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Correo electrónico del profesor
+    responses:
+      200:
+        description: Datos del profesor obtenidos exitosamente
+        content:
+          application/json:
+            schema: ProfessorResponseSchema
+      404:
+        description: Profesor no encontrado
+      500:
+        description: Error interno del servidor
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT * FROM PROFESSOR WHERE EMAIL = :email", {'email': email})
+        professor = cursor.fetchone()
+
+        if professor is None:
+            return jsonify({"error": "Profesor no encontrado"}), 404
+
+        return jsonify(dict(zip([key[0] for key in cursor.description], professor))), 200
+    except Exception as e:
+        logger.exception("Error obteniendo Professor por EMAIL")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@professor_bp.route('/professor/code/<string:professor_code>', methods=['GET'])
+def get_professor_by_code(professor_code):
+    """
+    Obtener un Profesor por PROFESSOR_CODE
+    ---
+    summary: Obtener un profesor por PROFESSOR_CODE
+    description: Endpoint para obtener los detalles de un profesor por su código.
+    parameters:
+      - name: professor_code
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Código del profesor
+    responses:
+      200:
+        description: Datos del profesor obtenidos exitosamente
+        content:
+          application/json:
+            schema: ProfessorResponseSchema
+      404:
+        description: Profesor no encontrado
+      500:
+        description: Error interno del servidor
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT * FROM PROFESSOR WHERE PROFESSOR_CODE = :professor_code", {'professor_code': professor_code})
+        professor = cursor.fetchone()
+
+        if professor is None:
+            return jsonify({"error": "Profesor no encontrado"}), 404
+
+        return jsonify(dict(zip([key[0] for key in cursor.description], professor))), 200
+    except Exception as e:
+        logger.exception("Error obteniendo Professor por PROFESSOR_CODE")
         return jsonify({"error": str(e)}), 500
     finally:
         cursor.close()
