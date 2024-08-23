@@ -12,26 +12,50 @@ logger = logging.getLogger(__name__)
 
 appuser_bp = Blueprint('appuser', __name__)
 
+
 def generate_unique_professor_code(cursor):
     while True:
         random_number = random.randint(1, 999)
         professor_code = f"PC{random_number:03}"
-        
+
         cursor.execute(
-            "SELECT COUNT(*) FROM PROFESSOR WHERE PROFESSOR_CODE = :professor_code", 
+            "SELECT COUNT(*) FROM PROFESSOR WHERE PROFESSOR_CODE = :professor_code",
             {'professor_code': professor_code}
         )
         if cursor.fetchone()[0] == 0:
             return professor_code
 
+
 @appuser_bp.route('/appuser', methods=['POST'])
 def create_appuser():
+    """
+    Crear un nuevo AppUser
+    ---
+    summary: Crea un nuevo usuario de aplicación
+    description: Endpoint para crear un nuevo usuario en la base de datos.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: AppUserSchema
+    responses:
+      201:
+        description: AppUser creado exitosamente
+        content:
+          application/json:
+            schema: AppUserResponseSchema
+      400:
+        description: Error en los datos proporcionados
+      500:
+        description: Error interno del servidor
+    """
     try:
         data = request.json
-        
+
         # Validación del formato de la fecha
         try:
-            registration_date = datetime.strptime(data['REGISTRATION_DATE'], '%Y-%m-%d').strftime('%Y-%m-%d')
+            registration_date = datetime.strptime(
+                data['REGISTRATION_DATE'], '%Y-%m-%d').strftime('%Y-%m-%d')
         except ValueError:
             return jsonify({"error": "Formato de fecha inválido. Se espera 'YYYY-MM-DD'."}), 400
 
@@ -43,7 +67,7 @@ def create_appuser():
 
         # Verificar si el email ya existe en APP_USER
         cursor.execute(
-            "SELECT COUNT(*) FROM APP_USER WHERE EMAIL = :email", 
+            "SELECT COUNT(*) FROM APP_USER WHERE EMAIL = :email",
             {'email': data['EMAIL']}
         )
         if cursor.fetchone()[0] > 0:
@@ -61,7 +85,7 @@ def create_appuser():
 
                 :user_id := v_user_id;
             END;
-            """, 
+            """,
             {
                 'first_name': data['FIRST_NAME'],
                 'last_name': data['LAST_NAME'],
@@ -124,7 +148,8 @@ def create_appuser():
         conn.commit()
         return jsonify({"message": "AppUser y Professor creados exitosamente", "professor_code": professor_code}), 201
     except cx_Oracle.IntegrityError as e:
-        logger.exception("Error de integridad de base de datos creando AppUser y Professor")
+        logger.exception(
+            "Error de integridad de base de datos creando AppUser y Professor")
         conn.rollback()  # Hacer rollback en caso de error
         return jsonify({"error": "Error de integridad: " + str(e)}), 400
     except Exception as e:
@@ -135,18 +160,43 @@ def create_appuser():
         cursor.close()
         conn.close()
 
+
 @appuser_bp.route('/appuser/<int:user_id>', methods=['GET'])
 def get_appuser(user_id):
+    """
+    Obtener un AppUser por ID
+    ---
+    summary: Obtener un usuario de aplicación
+    description: Endpoint para obtener los detalles de un usuario por su ID.
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID del usuario
+    responses:
+      200:
+        description: Datos del usuario obtenidos exitosamente
+        content:
+          application/json:
+            schema: AppUserResponseSchema
+      404:
+        description: Usuario no encontrado
+      500:
+        description: Error interno del servidor
+    """
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        cursor.execute("SELECT * FROM APP_USER WHERE USER_ID = :user_id", {'user_id': user_id})
+
+        cursor.execute(
+            "SELECT * FROM APP_USER WHERE USER_ID = :user_id", {'user_id': user_id})
         appuser = cursor.fetchone()
-        
+
         if appuser is None:
             return jsonify({"error": "AppUser no encontrado"}), 404
-        
+
         return jsonify(dict(zip([key[0] for key in cursor.description], appuser))), 200
     except Exception as e:
         logger.exception("Error obteniendo AppUser")
@@ -155,8 +205,34 @@ def get_appuser(user_id):
         cursor.close()
         conn.close()
 
+
 @appuser_bp.route('/appuser/<int:user_id>', methods=['PUT'])
 def update_appuser(user_id):
+    """
+    Actualizar un AppUser por ID
+    ---
+    summary: Actualizar un usuario de aplicación
+    description: Endpoint para actualizar los detalles de un usuario por su ID.
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID del usuario
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: AppUserSchema
+    responses:
+      200:
+        description: Usuario actualizado exitosamente
+      404:
+        description: Usuario no encontrado
+      500:
+        description: Error interno del servidor
+    """
     try:
         data = request.json
         conn = get_db_connection()
@@ -191,13 +267,35 @@ def update_appuser(user_id):
         cursor.close()
         conn.close()
 
+
 @appuser_bp.route('/appuser/<int:user_id>', methods=['DELETE'])
 def delete_appuser(user_id):
+    """
+    Eliminar un AppUser por ID
+    ---
+    summary: Eliminar un usuario de aplicación
+    description: Endpoint para eliminar un usuario por su ID.
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID del usuario
+    responses:
+      200:
+        description: Usuario eliminado exitosamente
+      404:
+        description: Usuario no encontrado
+      500:
+        description: Error interno del servidor
+    """
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        cursor.execute("DELETE FROM APP_USER WHERE USER_ID = :user_id", {'user_id': user_id})
+
+        cursor.execute("DELETE FROM APP_USER WHERE USER_ID = :user_id", {
+                       'user_id': user_id})
         conn.commit()
         return jsonify({"message": "AppUser eliminado exitosamente"}), 200
     except Exception as e:

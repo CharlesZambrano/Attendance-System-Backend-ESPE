@@ -11,6 +11,7 @@ from flask import Blueprint, jsonify, request
 logger = logging.getLogger(__name__)
 embedding_bp = Blueprint('create_embedding', __name__)
 
+
 def insert_face_data(maestro_id, image_blob, embedding_str):
     """
     Inserta datos faciales en la tabla Rostros.
@@ -42,11 +43,34 @@ def insert_face_data(maestro_id, image_blob, embedding_str):
         if connection:
             connection.close()
 
+
 @embedding_bp.route('/create_embedding', methods=['POST'])
 def create_embedding():
+    """
+    Crear un embedding de rostro
+    ---
+    summary: Crear un embedding de rostro
+    description: Endpoint para crear un embedding de rostro y almacenarlo en la base de datos.
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema: CreateEmbeddingSchema
+    responses:
+      200:
+        description: Embedding creado y almacenado con éxito
+        content:
+          application/json:
+            schema: CreateEmbeddingResponseSchema
+      400:
+        description: Error en los datos proporcionados
+      500:
+        description: Error interno del servidor
+    """
     try:
         if 'image' not in request.files:
-            logger.error("No se proporcionó ningún archivo de imagen en la solicitud.")
+            logger.error(
+                "No se proporcionó ningún archivo de imagen en la solicitud.")
             return jsonify({"error": "No se proporcionó ningún archivo de imagen."}), 400
 
         file = request.files['image'].read()
@@ -58,16 +82,19 @@ def create_embedding():
         img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
 
         if img is None:
-            logger.error("No se pudo decodificar la imagen. Asegúrate de que el archivo sea una imagen válida.")
+            logger.error(
+                "No se pudo decodificar la imagen. Asegúrate de que el archivo sea una imagen válida.")
             return jsonify({"error": "No se pudo decodificar la imagen."}), 400
 
         maestro_id = request.form.get('maestro_id')
         if not maestro_id:
-            logger.error("No se proporcionó el ID del maestro en la solicitud.")
+            logger.error(
+                "No se proporcionó el ID del maestro en la solicitud.")
             return jsonify({"error": "El ID del maestro es requerido."}), 400
 
         # Generar el embedding usando "Facenet512"
-        embedding_objs = DeepFace.represent(img_path=img, model_name="Facenet512")
+        embedding_objs = DeepFace.represent(
+            img_path=img, model_name="Facenet512")
         if not embedding_objs:
             logger.error("No se pudo generar el embedding del rostro.")
             return jsonify({"error": "No se pudo generar el embedding del rostro."}), 500

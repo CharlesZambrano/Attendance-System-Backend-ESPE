@@ -15,14 +15,38 @@ logger = logging.getLogger(__name__)
 recognize_bp = Blueprint('recognize', __name__)
 
 DEEPFACE_DB_PATH = '/app/academic_staff_database'
-eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+eye_cascade = cv2.CascadeClassifier(
+    cv2.data.haarcascades + 'haarcascade_eye.xml')
+
 
 @recognize_bp.route('/recognize', methods=['POST'])
 def recognize_faces():
+    """
+    Reconocer rostros en una imagen
+    ---
+    summary: Reconocer rostros
+    description: Endpoint para reconocer rostros en una imagen y compararlos con una base de datos.
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema: RecognizeFaceSchema
+    responses:
+      200:
+        description: Rostros reconocidos exitosamente
+        content:
+          application/json:
+            schema: RecognizeFaceResponseSchema
+      400:
+        description: Error en los datos proporcionados
+      500:
+        description: Error interno del servidor
+    """
     try:
         # Verificar si se ha enviado un archivo de imagen
         if 'image' not in request.files:
-            logger.error("No se proporcionó ningún archivo de imagen en la solicitud.")
+            logger.error(
+                "No se proporcionó ningún archivo de imagen en la solicitud.")
             return jsonify({"error": "No se proporcionó ningún archivo de imagen."}), 400
 
         file = request.files['image'].read()
@@ -34,12 +58,14 @@ def recognize_faces():
         img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
 
         if img is None:
-            logger.error("No se pudo decodificar la imagen. Asegúrate de que el archivo sea una imagen válida.")
+            logger.error(
+                "No se pudo decodificar la imagen. Asegúrate de que el archivo sea una imagen válida.")
             return jsonify({"error": "No se pudo decodificar la imagen."}), 400
 
         # Verificar si se proporcionan las coordenadas de los rostros
         if 'faces' not in request.form:
-            logger.error("No se proporcionaron las coordenadas de los rostros en la solicitud.")
+            logger.error(
+                "No se proporcionaron las coordenadas de los rostros en la solicitud.")
             return jsonify({"error": "No se proporcionaron las coordenadas de los rostros."}), 400
 
         try:
@@ -55,11 +81,13 @@ def recognize_faces():
         match_counts = {}  # Diccionario para contar coincidencias por identidad
 
         for face in faces:
-            x1, y1, x2, y2 = face.get('x1'), face.get('y1'), face.get('x2'), face.get('y2')
+            x1, y1, x2, y2 = face.get('x1'), face.get(
+                'y1'), face.get('x2'), face.get('y2')
 
             # Validar que las coordenadas existan y sean enteros
             if None in [x1, y1, x2, y2]:
-                logger.error(f"Coordenadas incompletas o inválidas para el rostro: {face}")
+                logger.error(
+                    f"Coordenadas incompletas o inválidas para el rostro: {face}")
                 continue
 
             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
@@ -69,7 +97,8 @@ def recognize_faces():
             x2, y2 = min(x2, img.shape[1] - 1), min(y2, img.shape[0] - 1)
 
             if x1 >= x2 or y1 >= y2:
-                logger.error(f"Coordenadas inválidas después de la validación para el rostro: {face}")
+                logger.error(
+                    f"Coordenadas inválidas después de la validación para el rostro: {face}")
                 continue
 
             # Recortar la región de la imagen donde está el rostro
@@ -81,21 +110,27 @@ def recognize_faces():
 
             # Realizar el reconocimiento facial usando "Facenet512"
             try:
-                results = DeepFace.find(face_img, db_path=DEEPFACE_DB_PATH, model_name="Facenet512", enforce_detection=False)
+                results = DeepFace.find(
+                    face_img, db_path=DEEPFACE_DB_PATH, model_name="Facenet512", enforce_detection=False)
                 if results and isinstance(results, list):
                     for df in results:
                         if not df.empty:
                             for _, row in df.iterrows():
                                 identity = row.get('identity', '')
                                 if identity:
-                                    identity_name = os.path.basename(os.path.dirname(identity))
-                                    match_counts[identity_name] = match_counts.get(identity_name, 0) + 1
+                                    identity_name = os.path.basename(
+                                        os.path.dirname(identity))
+                                    match_counts[identity_name] = match_counts.get(
+                                        identity_name, 0) + 1
                         else:
-                            logger.info("No se encontraron coincidencias para el rostro actual.")
+                            logger.info(
+                                "No se encontraron coincidencias para el rostro actual.")
                 else:
-                    logger.info("DeepFace no devolvió resultados para el rostro actual.")
+                    logger.info(
+                        "DeepFace no devolvió resultados para el rostro actual.")
             except Exception as e:
-                logger.exception(f"Error en el reconocimiento facial: {str(e)}")
+                logger.exception(
+                    f"Error en el reconocimiento facial: {str(e)}")
                 continue  # Continuar con el siguiente rostro en caso de error
 
         # Determinar la identidad con el mayor número de coincidencias

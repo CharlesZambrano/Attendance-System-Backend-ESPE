@@ -19,18 +19,43 @@ MIN_CONFIDENCE = 0.8
 
 # Verificar si el modelo existe
 if not os.path.exists(YOLO_MODEL_PATH):
-    logger.error(f"El modelo YOLO no se encontró en la ruta: {YOLO_MODEL_PATH}")
-    raise FileNotFoundError(f"El modelo YOLO no se encontró en la ruta: {YOLO_MODEL_PATH}")
+    logger.error(
+        f"El modelo YOLO no se encontró en la ruta: {YOLO_MODEL_PATH}")
+    raise FileNotFoundError(
+        f"El modelo YOLO no se encontró en la ruta: {YOLO_MODEL_PATH}")
 
 # Cargar el modelo YOLOv8
 model = YOLO(YOLO_MODEL_PATH)
 
+
 @detect_bp.route('/detect', methods=['POST'])
 def detect_faces():
+    """
+    Detectar rostros en una imagen
+    ---
+    summary: Detectar rostros
+    description: Endpoint para detectar rostros en una imagen.
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema: DetectFaceSchema
+    responses:
+      200:
+        description: Rostros detectados exitosamente
+        content:
+          application/json:
+            schema: DetectFaceResponseSchema
+      400:
+        description: Error en los datos proporcionados
+      500:
+        description: Error interno del servidor
+    """
     try:
         # Verificar si se ha enviado un archivo de imagen
         if 'image' not in request.files:
-            logger.error("No se proporcionó ningún archivo de imagen en la solicitud.")
+            logger.error(
+                "No se proporcionó ningún archivo de imagen en la solicitud.")
             return jsonify({"error": "No se proporcionó ningún archivo de imagen."}), 400
 
         file = request.files['image'].read()
@@ -42,7 +67,8 @@ def detect_faces():
         img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
 
         if img is None:
-            logger.error("No se pudo decodificar la imagen. Asegúrate de que el archivo sea una imagen válida.")
+            logger.error(
+                "No se pudo decodificar la imagen. Asegúrate de que el archivo sea una imagen válida.")
             return jsonify({"error": "No se pudo decodificar la imagen."}), 400
 
         # Leer el parámetro opcional save_image
@@ -92,7 +118,7 @@ def detect_faces():
             output_path = "/app/detected_face_with_landmarks.jpg"  # Cambia la ruta si lo deseas
             cv2.imwrite(output_path, img)
             logger.info(f"Imagen del rostro guardada en {output_path}")
-            
+
             # Incluir la ruta de la imagen en la respuesta si se guardó
             response["image_path"] = output_path
 

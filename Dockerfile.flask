@@ -47,6 +47,9 @@ RUN pip install pytz
 # Instalar pytz
 RUN pip install openpyxl
 
+# Instalas Swagger
+RUN pip install Flask marshmallow apispec apispec-webframeworks[flask]
+
 # Copiar el código fuente en el contenedor
 COPY . .
 
